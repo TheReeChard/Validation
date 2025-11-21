@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Validation Dashboard - Therapeutic Activities</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      .bar-chart-container {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-around;
+        height: 250px;
+        gap: 20px;
+        padding: 20px;
+      }
+      .bar {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+      }
+      .bar-fill {
+        width: 60px;
+        background: #3b82f6;
+        border-radius: 8px 8px 0 0;
+      }
+      .bar-label {
+        font-weight: 600;
+        font-size: 14px;
+        text-align: center;
+      }
+      .tabs-container {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 2rem;
+      }
+      .dropdown-button {
+        cursor: pointer;
+        user-select: none;
+        width: 100%;
+        text-align: left;
+      }
+      .dropdown-content {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease-out;
+      }
+      .dropdown-content.open {
+        max-height: 500px;
+      }
+      .tooltip-container {
+        position: relative;
+        display: inline-block;
+      }
+      .tooltip-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        margin-left: 6px;
+        background-color: rgba(107, 114, 128, 0.5);
+        border-radius: 50%;
+        color: white;
+        font-size: 12px;
+        font-weight: bold;
+        cursor: help;
+      }
+      .tooltip-text {
+        visibility: hidden;
+        width: 250px;
+        background-color: rgba(0, 0, 0, 0.9);
+        color: #fff;
+        text-align: left;
+        padding: 10px 12px;
+        border-radius: 6px;
+        position: absolute;
+        z-index: 1000;
+        bottom: 125%;
+        left: 50%;
+        margin-left: -125px;
+        opacity: 0;
+        transition: opacity 0.3s;
+        font-size: 12px;
+        line-height: 1.4;
+        font-weight: 400;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      }
+      .tooltip-text::after {
+        content: "";
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        margin-left: -5px;
+        border-width: 5px;
+        border-style: solid;
+        border-color: rgba(0, 0, 0, 0.9) transparent transparent transparent;
+      }
+      .tooltip-container:hover .tooltip-text {
+        visibility: visible;
+        opacity: 1;
+      }
+      .result-image {
+        max-width: 100%;
+        max-height: 300px;
+        margin: 15px 0;
+        border-radius: 6px;
+        display: block;
+      }
+      .image-placeholder {
+        background-color: #f3f4f6;
+        border: 2px dashed #d1d5db;
+        padding: 20px;
+        border-radius: 6px;
+        text-align: center;
+        color: #6b7280;
+        font-size: 14px;
+        margin: 15px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <script>
+      const app = document.getElementById("root");
+      let activeTab = "coloring";
+      let expandedDropdowns = {};
+
+      // IMAGE NAMING CONVENTION:
+      // Coloring Page: images/coloring_1.jpg, coloring_2.jpg, etc.
+      // Word Search: images/wordSearch_1.jpg, wordSearch_2.jpg, etc.
+      // Spot the Difference: images/spotDifference_1.jpg, spotDifference_2.jpg, etc.
+      // Activity Game: images/activityGame_1.jpg, activityGame_2.jpg, etc.
+      // Hidden Objects: images/hiddenObjects_1.jpg, hiddenObjects_2.jpg, etc.
+
+      const spotTheDifferenceTests = [
+        {
+          id: 1,
+          test: "Beach Scene Differences",
+          passed: true,
+          satisfaction: true,
+          result:
+            "Picture asset generated successfully with clear visual differences",
+          image: "images/spotDifference_1.jpg",
+        },
+        {
+          id: 2,
+          test: "Zoo Animals Spot Change",
+          passed: true,
+          satisfaction: true,
+          result: "Picture asset generated successfully with animal variations",
+          image: "images/spotDifference_2.jpg",
+        },
+        {
+          id: 3,
+          test: "Classroom Objects Hunt",
+          passed: false,
+          satisfaction: false,
+          result:
+            "Failed to generate proper classroom scene with adequate differences",
+          image: "images/spotDifference_3.jpg",
+        },
+        {
+          id: 4,
+          test: "Garden Creatures Differences",
+          passed: true,
+          satisfaction: true,
+          result: "Picture asset generated with visible creature differences",
+          image: "images/spotDifference_4.jpg",
+        },
+        {
+          id: 5,
+          test: "Underwater Scene Spot",
+          passed: false,
+          satisfaction: true,
+          result:
+            "Generated with some limitations but client satisfied with output",
+          image: "images/spotDifference_5.jpg",
+        },
+        {
+          id: 6,
+          test: "Forest Animals Differences",
+          passed: false,
+          satisfaction: false,
+          result: "Scene quality below standards and client dissatisfied",
+          image: "images/spotDifference_6.jpg",
+        },
+        {
+          id: 7,
+          test: "Space Scene Spot Changes",
+          passed: true,
+          satisfaction: true,
+          result: "Picture asset generated successfully with cosmic elements",
+          image: "images/spotDifference_7.jpg",
+        },
+        {
+          id: 8,
+          test: "Playground Objects Hunt",
+          passed: true,
+          satisfaction: true,
+          result: "Clear differences generated in playground scene",
+          image: "images/spotDifference_8.jpg",
+        },
+        {
+          id: 9,
+          test: "Kitchen Scene Differences",
+          passed: true,
+          satisfaction: true,
+          result: "Kitchen items successfully differentiated",
+          image: "images/spotDifference_9.jpg",
+        },
+        {
+          id: 10,
+          test: "Bedroom Objects Spot",
+          passed: true,
+          satisfaction: true,
+          result: "Bedroom scene with clear object variations created",
+          image: "images/spotDifference_10.jpg",
+        },
+      ];
+
+      const activityGameTests = [
+        {
+          id: 1,
+          test: "Memory Match Game",
+          passed: true,
+          satisfaction: false,
+          result:
+            "Activity generated and in OneDrive folder - minor satisfaction issues",
+          image: "images/activityGame_1.jpg",
+        },
+        {
+          id: 2,
+          test: "Pattern Recognition Activity",
+          passed: true,
+          satisfaction: true,
+          result: "In folder in OneDrive - fully functional",
+          image: "images/activityGame_2.jpg",
+        },
+        {
+          id: 3,
+          test: "Color Sorting Game",
+          passed: true,
+          satisfaction: true,
+          result:
+            "Fortnite-themed activity designed successfully with fun gameplay mechanics",
+          image: "images/activityGame_3.jpg",
+        },
+        {
+          id: 4,
+          test: "Shape Matching Activity",
+          passed: true,
+          satisfaction: true,
+          result: "In folder in OneDrive - excellent results",
+          image: "images/activityGame_4.jpg",
+        },
+        {
+          id: 5,
+          test: "Sequence Building Game",
+          passed: true,
+          satisfaction: true,
+          result: "In folder in OneDrive - meets all requirements",
+          image: "images/activityGame_5.jpg",
+        },
+        {
+          id: 6,
+          test: "Object Categorization",
+          passed: true,
+          satisfaction: true,
+          result: "In folder in OneDrive - well organized",
+          image: "images/activityGame_6.jpg",
+        },
+        {
+          id: 7,
+          test: "Logic Puzzle Activity",
+          passed: true,
+          satisfaction: true,
+          result: "In folder in OneDrive - engaging and functional",
+          image: "images/activityGame_7.jpg",
+        },
+        {
+          id: 8,
+          test: "Counting Challenge Game",
+          passed: false,
+          satisfaction: false,
+          result:
+            "In folder in OneDrive - failed criteria and low satisfaction",
+          image: "images/activityGame_8.jpg",
+        },
+        {
+          id: 9,
+          test: "Alphabet Sequencing",
+          passed: true,
+          satisfaction: true,
+          result: "In folder in OneDrive - successful implementation",
+          image: "images/activityGame_9.jpg",
+        },
+        {
+          id: 10,
+          test: "Number Pattern Recognition",
+          passed: true,
+          satisfaction: false,
+          result:
+            "In folder in OneDrive - works but client not fully satisfied",
+          image: "images/activityGame_10.jpg",
+        },
+      ];
+
+      const hiddenObjectsTests = [
+        {
+          id: 1,
+          test: "Lost Toys in Bedroom",
+          passed: false,
+          satisfaction: false,
+          result: "quality issues detected",
+          image: "images/hiddenObjects_1.jpg",
+        },
+        {
+          id: 2,
+          test: "Hidden Animals in Forest",
+          passed: true,
+          satisfaction: true,
+          result: "excellent hidden object placement",
+          image: "images/hiddenObjects_2.jpg",
+        },
+        {
+          id: 3,
+          test: "Missing Items in Kitchen",
+          passed: true,
+          satisfaction: true,
+          result: "clear and engaging",
+          image: "images/hiddenObjects_3.jpg",
+        },
+        {
+          id: 4,
+          test: "Underwater Creatures Find",
+          passed: false,
+          satisfaction: true,
+          result: "client satisfied despite technical issues",
+          image: "images/hiddenObjects_4.jpg",
+        },
+        {
+          id: 5,
+          test: "Hidden Objects Playground",
+          passed: true,
+          satisfaction: true,
+          result: "well designed",
+          image: "images/hiddenObjects_5.jpg",
+        },
+        {
+          id: 6,
+          test: "Lost School Supplies",
+          passed: false,
+          satisfaction: false,
+          result: "failed validation",
+          image: "images/hiddenObjects_6.jpg",
+        },
+        {
+          id: 7,
+          test: "Hidden Farm Animals",
+          passed: true,
+          satisfaction: true,
+          result: "great visual appeal",
+          image: "images/hiddenObjects_7.jpg",
+        },
+        {
+          id: 8,
+          test: "Missing Garden Items",
+          passed: true,
+          satisfaction: true,
+          result: "meets all standards",
+          image: "images/hiddenObjects_8.jpg",
+        },
+        {
+          id: 9,
+          test: "Hidden Space Objects",
+          passed: true,
+          satisfaction: true,
+          result: "creative implementation",
+          image: "images/hiddenObjects_9.jpg",
+        },
+        {
+          id: 10,
+          test: "Lost Castle Treasures",
+          passed: false,
+          satisfaction: false,
+          result: "below quality threshold",
+          image: "images/hiddenObjects_10.jpg",
+        },
+      ];
+
+      const coloringPageTests = [
+        {
+          id: 1,
+          test: "Brave Space Explorer",
+          passed: true,
+          satisfaction: true,
+          result:
+            "Generated personalized coloring page with space theme and cast accommodation",
+          image: "images/coloring_1.jpg",
+        },
+        {
+          id: 2,
+          test: "Friendly Forest Animals",
+          passed: true,
+          satisfaction: true,
+          result:
+            "Created inclusive forest scene with various animal characters",
+          image: "images/coloring_2.jpg",
+        },
+        {
+          id: 3,
+          test: "Fantasy Dragon Companion",
+          passed: true,
+          satisfaction: true,
+          result: "Generated detailed dragon page with medical accommodation",
+          image: "images/coloring_3.jpg",
+        },
+        {
+          id: 4,
+          test: "Superhero Adventure",
+          passed: true,
+          satisfaction: true,
+          result: "Created wheelchair-inclusive superhero themed page",
+          image: "images/coloring_4.jpg",
+        },
+        {
+          id: 5,
+          test: "Sweet Farm Friends",
+          passed: true,
+          satisfaction: true,
+          result:
+            "Generated simple farm animals suitable for very young children",
+          image: "images/coloring_5.jpg",
+        },
+        {
+          id: 6,
+          test: "Happy Transportation",
+          passed: true,
+          satisfaction: true,
+          result: "Created connect-the-dots transportation themed page",
+          image: "images/coloring_6.jpg",
+        },
+        {
+          id: 7,
+          test: "Space Adventure Color-by-Number",
+          passed: true,
+          satisfaction: true,
+          result:
+            "Generated color-by-number space activity with personalization",
+          image: "images/coloring_7.jpg",
+        },
+        {
+          id: 8,
+          test: "Magical Creatures Trace-and-Color",
+          passed: true,
+          satisfaction: true,
+          result: "Created trace-and-color unicorn and fairy page",
+          image: "images/coloring_8.jpg",
+        },
+        {
+          id: 9,
+          test: "Ocean Adventure",
+          passed: true,
+          satisfaction: true,
+          result: "Generated ocean scene with medical accommodation for tubes",
+          image: "images/coloring_9.jpg",
+        },
+        {
+          id: 10,
+          test: "Fun Fruits",
+          passed: true,
+          satisfaction: true,
+          result:
+            "Created simple fruit sticker-style icons for very young children",
+          image: "images/coloring_10.jpg",
+        },
+      ];
+
+      const wordSearchTests = [
+        {
+          id: 1,
+          test: "Friendly Animals 3-5",
+          passed: true,
+          satisfaction: true,
+          result: "Generated age-appropriate word search with large print",
+          image: "images/wordSearch_1.jpg",
+        },
+        {
+          id: 2,
+          test: "Space Exploration 12-14",
+          passed: true,
+          satisfaction: true,
+          result: "Created challenging word search with science vocabulary",
+          image: "images/wordSearch_2.jpg",
+        },
+        {
+          id: 3,
+          test: "Ocean Adventure 6-8",
+          passed: true,
+          satisfaction: true,
+          result: "Generated sensory-friendly ocean-themed puzzle",
+          image: "images/wordSearch_3.jpg",
+        },
+        {
+          id: 4,
+          test: "Music and Arts 15-18",
+          passed: true,
+          satisfaction: true,
+          result: "Created complex word search with cultural instruments",
+          image: "images/wordSearch_4.jpg",
+        },
+        {
+          id: 5,
+          test: "Dinosaurs 3-5",
+          passed: true,
+          satisfaction: true,
+          result: "Generated starter difficulty dinosaur themed puzzle",
+          image: "images/wordSearch_5.jpg",
+        },
+        {
+          id: 6,
+          test: "Sports and Games 9-11",
+          passed: true,
+          satisfaction: true,
+          result: "Created inclusive adaptive sports word search",
+          image: "images/wordSearch_6.jpg",
+        },
+        {
+          id: 7,
+          test: "Superheroes 6-8",
+          passed: true,
+          satisfaction: true,
+          result: "Generated diverse superhero themed word search",
+          image: "images/wordSearch_7.jpg",
+        },
+        {
+          id: 8,
+          test: "Nature and Seasons 12-14",
+          passed: true,
+          satisfaction: true,
+          result: "Created mindfulness-focused nature word search",
+          image: "images/wordSearch_8.jpg",
+        },
+        {
+          id: 9,
+          test: "Colors and Shapes 3-5",
+          passed: true,
+          satisfaction: true,
+          result: "Generated extra large print starter level puzzle",
+          image: "images/wordSearch_9.jpg",
+        },
+        {
+          id: 10,
+          test: "Future Careers 15-18",
+          passed: true,
+          satisfaction: true,
+          result: "Created inspiring careers word search with hope themes",
+          image: "images/wordSearch_10.jpg",
+        },
+      ];
+
+      const activityConfig = {
+        coloring: {
+          name: "Coloring Page",
+          color: "green",
+          gradient: "from-green-500 to-emerald-600",
+          tests: coloringPageTests,
+        },
+        wordSearch: {
+          name: "Word Search",
+          color: "purple",
+          gradient: "from-purple-500 to-indigo-600",
+          tests: wordSearchTests,
+        },
+        spotDifference: {
+          name: "Spot the Difference",
+          color: "orange",
+          gradient: "from-orange-500 to-red-600",
+          tests: spotTheDifferenceTests,
+        },
+        activityGame: {
+          name: "Activity Game",
+          color: "blue",
+          gradient: "from-blue-500 to-cyan-600",
+          tests: activityGameTests,
+        },
+        hiddenObjects: {
+          name: "Hidden Objects",
+          color: "pink",
+          gradient: "from-pink-500 to-rose-600",
+          tests: hiddenObjectsTests,
+        },
+      };
+
+      const colorMap = {
+        green: {
+          border: "border-green-500",
+          badge: "bg-green-100 text-green-800",
+          icon: "text-green-500",
+          tab: "bg-green-500",
+        },
+        purple: {
+          border: "border-purple-200",
+          badge: "bg-purple-100 text-purple-800",
+          icon: "text-purple-500",
+          tab: "bg-purple-500",
+        },
+        orange: {
+          border: "border-orange-200",
+          badge: "bg-orange-100 text-orange-800",
+          icon: "text-orange-500",
+          tab: "bg-orange-500",
+        },
+        blue: {
+          border: "border-blue-200",
+          badge: "bg-blue-100 text-blue-800",
+          icon: "text-blue-500",
+          tab: "bg-blue-500",
+        },
+        pink: {
+          border: "border-pink-200",
+          badge: "bg-pink-100 text-pink-800",
+          icon: "text-pink-500",
+          tab: "bg-pink-500",
+        },
+      };
+
+      function generatePieChart(passCount, failCount) {
+        const total = passCount + failCount;
+        if (total === 0) return "";
+
+        const passPercent = (passCount / total) * 100;
+        const radius = 70;
+        const cx = 90;
+        const cy = 90;
+
+        if (passCount === total) {
+          return `
+                    <svg width="180" height="180" viewBox="0 0 180 180" class="mb-6">
+                        <circle cx="90" cy="90" r="70" fill="#10b981" />
+                    </svg>
+                `;
+        }
+
+        if (passCount === 0) {
+          return `
+                    <svg width="180" height="180" viewBox="0 0 180 180" class="mb-6">
+                        <circle cx="90" cy="90" r="70" fill="#ef4444" />
+                    </svg>
+                `;
+        }
+
+        const passAngle = (passPercent / 100) * 360;
+        const startAngleDeg = -90;
+        const endAngleDeg = startAngleDeg + passAngle;
+
+        const startAngleRad = (startAngleDeg * Math.PI) / 180;
+        const endAngleRad = (endAngleDeg * Math.PI) / 180;
+
+        const x1 = cx + radius * Math.cos(startAngleRad);
+        const y1 = cy + radius * Math.sin(startAngleRad);
+        const x2 = cx + radius * Math.cos(endAngleRad);
+        const y2 = cy + radius * Math.sin(endAngleRad);
+
+        const largeArc = passAngle > 180 ? 1 : 0;
+        const passPath = `M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`;
+        const failLargeArc = 360 - passAngle > 180 ? 1 : 0;
+        const failPath = `M ${cx} ${cy} L ${x2} ${y2} A ${radius} ${radius} 0 ${failLargeArc} 1 ${x1} ${y1} Z`;
+
+        return `
+                <svg width="180" height="180" viewBox="0 0 180 180" class="mb-6">
+                    <path d="${passPath}" fill="#10b981" />
+                    <path d="${failPath}" fill="#ef4444" />
+                </svg>
+            `;
+      }
+
+      function toggleDropdown(testId) {
+        const key = `${activeTab}-${testId}`;
+        expandedDropdowns[key] = !expandedDropdowns[key];
+        render();
+      }
+
+      function render() {
+        const config = activityConfig[activeTab];
+        const currentTests = config.tests;
+        const passCount = currentTests.filter((t) => t.passed).length;
+        const failCount = currentTests.length - passCount;
+        const passRate = (passCount / currentTests.length) * 100;
+        const satisfactionCount = currentTests.filter(
+          (t) => t.satisfaction
+        ).length;
+        const satisfactionRate =
+          (satisfactionCount / currentTests.length) * 100;
+        const colors = colorMap[config.color];
+
+        const html = `
+                <div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-8">
+                    <div class="max-w-6xl mx-auto">
+                        <!-- Header -->
+                        <div class="mb-12">
+                            <h1 class="text-4xl font-bold text-gray-900 mb-2">Prompt Validation Results</h1>
+                            <p class="text-lg text-gray-600">Therapeutic Activity Generator - Quality Assurance Report</p>
+                        </div>
+
+                        <!-- Tab Navigation -->
+                        <div class="tabs-container">
+                            <button onclick="switchTab('coloring')" class="px-6 py-3 rounded-lg font-semibold text-sm transition-all ${
+                              activeTab === "coloring"
+                                ? "bg-green-500 text-white shadow-lg"
+                                : "bg-white text-gray-700 border-2 border-gray-300"
+                            }">
+                                Coloring Page
+                            </button>
+                            <button onclick="switchTab('wordSearch')" class="px-6 py-3 rounded-lg font-semibold text-sm transition-all ${
+                              activeTab === "wordSearch"
+                                ? "bg-purple-500 text-white shadow-lg"
+                                : "bg-white text-gray-700 border-2 border-gray-300"
+                            }">
+                                Word Search
+                            </button>
+                            <button onclick="switchTab('spotDifference')" class="px-6 py-3 rounded-lg font-semibold text-sm transition-all ${
+                              activeTab === "spotDifference"
+                                ? "bg-orange-500 text-white shadow-lg"
+                                : "bg-white text-gray-700 border-2 border-gray-300"
+                            }">
+                                Spot the Difference
+                            </button>
+                            <button onclick="switchTab('activityGame')" class="px-6 py-3 rounded-lg font-semibold text-sm transition-all ${
+                              activeTab === "activityGame"
+                                ? "bg-blue-500 text-white shadow-lg"
+                                : "bg-white text-gray-700 border-2 border-gray-300"
+                            }">
+                                Activity Game
+                            </button>
+                            <button onclick="switchTab('hiddenObjects')" class="px-6 py-3 rounded-lg font-semibold text-sm transition-all ${
+                              activeTab === "hiddenObjects"
+                                ? "bg-pink-500 text-white shadow-lg"
+                                : "bg-white text-gray-700 border-2 border-gray-300"
+                            }">
+                                Hidden Objects
+                            </button>
+                        </div>
+
+                        <!-- Key Metrics -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+                            <div class="bg-white rounded-lg shadow-lg p-8 border-t-4 ${
+                              colors.border
+                            }">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="text-gray-600 text-sm font-semibold uppercase tracking-wide">Total Tests</p>
+                                        <p class="text-5xl font-bold text-gray-900 mt-2">${
+                                          currentTests.length
+                                        }</p>
+                                    </div>
+                                    <svg class="w-16 h-16 ${
+                                      colors.icon
+                                    }" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <div class="bg-white rounded-lg shadow-lg p-8 border-t-4 border-green-500">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <div class="flex items-center">
+                                            <p class="text-gray-600 text-sm font-semibold uppercase tracking-wide">Pass Rate</p>
+                                            <div class="tooltip-container">
+                                                <span class="tooltip-icon">?</span>
+                                                <span class="tooltip-text">The activity was successfully generated and met all technical requirements. A pass means the prompt execution was completed without errors.</span>
+                                            </div>
+                                        </div>
+                                        <p class="text-5xl font-bold text-green-600 mt-2">${passRate.toFixed(
+                                          0
+                                        )}%</p>
+                                    </div>
+                                    <div class="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
+                                        <span class="text-2xl font-bold text-green-600">✓</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="bg-white rounded-lg shadow-lg p-8 border-t-4 border-blue-500">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <div class="flex items-center">
+                                            <p class="text-gray-600 text-sm font-semibold uppercase tracking-wide">Client Satisfaction</p>
+                                            <div class="tooltip-container">
+                                                <span class="tooltip-icon">?</span>
+                                                <span class="tooltip-text">Whether the generated activity met quality standards and expectations. An activity can pass technically but not satisfy if the image isn't clear, the content isn't age-appropriate, or it doesn't meet clinical requirements.</span>
+                                            </div>
+                                        </div>
+                                        <p class="text-5xl font-bold text-blue-600 mt-2">${satisfactionRate.toFixed(
+                                          0
+                                        )}%</p>
+                                    </div>
+                                    <div class="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center">
+                                        <span class="text-2xl font-bold text-blue-600">👍</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Charts Section -->
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+                            <!-- Pie Chart -->
+                            <div class="bg-white rounded-lg shadow-lg p-8">
+                                <h2 class="text-xl font-bold text-gray-900 mb-6">Test Results Distribution</h2>
+                                <div class="flex flex-col items-center">
+                                    ${generatePieChart(passCount, failCount)}
+                                    <div class="flex gap-8">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-4 h-4 rounded bg-green-500"></div>
+                                            <span class="font-semibold">Passed: ${passCount}</span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-4 h-4 rounded bg-red-500"></div>
+                                            <span class="font-semibold">Failed: ${failCount}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Bar Chart -->
+                            <div class="bg-white rounded-lg shadow-lg p-8">
+                                <h2 class="text-xl font-bold text-gray-900 mb-6">Quality Metrics</h2>
+                                <div class="bar-chart-container">
+                                    <div class="bar">
+                                        <div class="bar-fill" style="height: ${passRate}px;"></div>
+                                        <span class="bar-label">${passRate.toFixed(
+                                          0
+                                        )}%</span>
+                                        <span class="text-xs text-gray-600">Pass Rate</span>
+                                    </div>
+                                    <div class="bar">
+                                        <div class="bar-fill" style="height: ${satisfactionRate}px; background: #06b6d4;"></div>
+                                        <span class="bar-label">${satisfactionRate.toFixed(
+                                          0
+                                        )}%</span>
+                                        <span class="text-xs text-gray-600">Satisfaction</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Test Details -->
+                        <div class="bg-white rounded-lg shadow-lg p-8 mb-12">
+                            <h2 class="text-xl font-bold text-gray-900 mb-6">Individual Test Results</h2>
+                            <div class="space-y-3">
+                                ${currentTests
+                                  .map((test) => {
+                                    const dropdownKey = `${activeTab}-${test.id}`;
+                                    const isExpanded =
+                                      expandedDropdowns[dropdownKey] || false;
+                                    return `
+                                        <div class="bg-gradient-to-r ${
+                                          activeTab === "coloring"
+                                            ? "from-green-50 to-blue-50"
+                                            : activeTab === "wordSearch"
+                                            ? "from-purple-50 to-blue-50"
+                                            : activeTab === "spotDifference"
+                                            ? "from-orange-50 to-red-50"
+                                            : activeTab === "activityGame"
+                                            ? "from-blue-50 to-cyan-50"
+                                            : "from-pink-50 to-rose-50"
+                                        } rounded-lg border ${colors.border}">
+                                            <button onclick="toggleDropdown(${
+                                              test.id
+                                            })" class="dropdown-button p-4 flex items-center justify-between w-full hover:opacity-80">
+                                                <div class="flex items-center gap-3">
+                                                    <svg class="w-6 h-6 ${
+                                                      colors.icon
+                                                    } flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                                    </svg>
+                                                    <div class="text-left">
+                                                        <p class="font-semibold text-gray-900">${
+                                                          test.test
+                                                        }</p>
+                                                        <div class="flex gap-2 mt-1">
+                                                            <span class="text-xs font-semibold px-3 py-1 rounded-full ${
+                                                              test.passed
+                                                                ? colors.badge
+                                                                : "bg-red-100 text-red-800"
+                                                            }">
+                                                                ${
+                                                                  test.passed
+                                                                    ? "✓ Passed"
+                                                                    : "✗ Failed"
+                                                                }
+                                                            </span>
+                                                            <span class="text-xs font-semibold px-3 py-1 rounded-full ${
+                                                              test.satisfaction
+                                                                ? "bg-blue-100 text-blue-800"
+                                                                : "bg-gray-100 text-gray-800"
+                                                            }">
+                                                                ${
+                                                                  test.satisfaction
+                                                                    ? "✓ Satisfied"
+                                                                    : "✗ Not Satisfied"
+                                                                }
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <svg class="w-5 h-5 text-gray-600 transition-transform ${
+                                                  isExpanded ? "rotate-180" : ""
+                                                }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                                </svg>
+                                            </button>
+                                            <div class="dropdown-content ${
+                                              isExpanded ? "open" : ""
+                                            } border-t ${colors.border}">
+                                                <div class="p-4 bg-white text-sm text-gray-700">
+                                                    <img src="${
+                                                      test.image
+                                                    }" alt="${
+                                      test.test
+                                    }" class="result-image" onerror="this.parentElement.innerHTML += '<div class=\'image-placeholder\'>Image not found: ${
+                                      test.image
+                                    }<br/>Add the image to the images folder with this filename</div>';" />
+                                                    <p class="font-semibold text-gray-900 mb-2">Result Details:</p>
+                                                    <p class="leading-relaxed">${
+                                                      test.result
+                                                    }</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                                  })
+                                  .join("")}
+                            </div>
+                        </div>
+
+                        <!-- Summary Statement -->
+                        <div class="bg-gradient-to-r ${
+                          config.gradient
+                        } rounded-lg shadow-lg p-8 text-white">
+                            <h3 class="text-2xl font-bold mb-3">Validation Report ✓</h3>
+                            <p class="text-lg leading-relaxed">
+                                The ${
+                                  config.name
+                                } Activity Generator has successfully completed validation testing across ${
+          currentTests.length
+        } scenarios. Results show a ${passRate.toFixed(
+          0
+        )}% pass rate and ${satisfactionRate.toFixed(
+          0
+        )}% client satisfaction, demonstrating the system's effectiveness in creating therapeutic activities for pediatric patients.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+        app.innerHTML = html;
+      }
+
+      function switchTab(tab) {
+        activeTab = tab;
+        expandedDropdowns = {};
+        render();
+      }
+
+      render();
+    </script>
+  </body>
+</html>
