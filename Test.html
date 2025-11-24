@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -5,15 +6,315 @@
     <title>PlayWard Validation Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-      /* ... your styles ... */
+      .bar-chart-container {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-around;
+        height: 250px;
+        gap: 20px;
+        padding: 20px;
+      }
+      .bar {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+      }
+      .bar-fill {
+        width: 60px;
+        background: #3b82f6;
+        border-radius: 8px 8px 0 0;
+      }
+      .bar-label {
+        font-weight: 600;
+        font-size: 14px;
+        text-align: center;
+      }
+      .tabs-container {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 2rem;
+      }
+      .dropdown-button {
+        cursor: pointer;
+        user-select: none;
+        width: 100%;
+        text-align: left;
+      }
+      .dropdown-content {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease-out;
+      }
+      .dropdown-content.open {
+        max-height: 500px;
+      }
+      .tooltip-container {
+        position: relative;
+        display: inline-block;
+      }
+      .tooltip-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        margin-left: 6px;
+        background-color: rgba(107, 114, 128, 0.5);
+        border-radius: 50%;
+        color: white;
+        font-size: 12px;
+        font-weight: bold;
+        cursor: help;
+      }
+      .tooltip-text {
+        visibility: hidden;
+        width: 250px;
+        background-color: rgba(0, 0, 0, 0.9);
+        color: #fff;
+        text-align: left;
+        padding: 10px 12px;
+        border-radius: 6px;
+        position: absolute;
+        z-index: 1000;
+        bottom: 125%;
+        left: 50%;
+        margin-left: -125px;
+        opacity: 0;
+        transition: opacity 0.3s;
+        font-size: 12px;
+        line-height: 1.4;
+        font-weight: 400;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      }
+      .tooltip-text::after {
+        content: "";
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        margin-left: -5px;
+        border-width: 5px;
+        border-style: solid;
+        border-color: rgba(0, 0, 0, 0.9) transparent transparent transparent;
+      }
+      .tooltip-container:hover .tooltip-text {
+        visibility: visible;
+        opacity: 1;
+      }
+      .result-image {
+        max-width: 100%;
+        max-height: 300px;
+        margin: 15px 0;
+        border-radius: 6px;
+        display: block;
+      }
+      .image-placeholder {
+        background-color: #f3f4f6;
+        border: 2px dashed #d1d5db;
+        padding: 20px;
+        border-radius: 6px;
+        text-align: center;
+        color: #6b7280;
+        font-size: 14px;
+        margin: 15px 0;
+      }
+      /* Modal Styles */
+      .modal {
+        display: none;
+        position: fixed;
+        z-index: 10000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+      }
+      .modal.open {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .modal-content {
+        background-color: white;
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        max-width: 500px;
+        width: 90%;
+        max-height: 80vh;
+        overflow-y: auto;
+      }
+      .close-modal {
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+        color: #aaa;
+      }
+      .close-modal:hover {
+        color: #000;
+      }
+      .star-rating {
+        font-size: 30px;
+        gap: 8px;
+        display: flex;
+        margin: 15px 0;
+      }
+      .star {
+        cursor: pointer;
+        color: #ddd;
+        transition: color 0.2s;
+      }
+      .star.active {
+        color: #fbbf24;
+      }
+      .star:hover,
+      .star.hover {
+        color: #fbbf24;
+      }
     </style>
-    <script src="https://www.gstatic.com/firebaseapp/11.0.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebaseapp/11.0.0/firebase-firestore.js"></script>
+    <!-- Fixed Firebase SDK URLs - changed from firebaseapp to firebasejs and added -compat versions -->
+    <script src="https://www.gstatic.com/firebasejs/11.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore-compat.js"></script>
   </head>
   <body>
     <div id="root"></div>
 
+    <!-- Feedback Modal -->
     <div id="feedbackModal" class="modal">
+      <div class="modal-content">
+        <span class="close-modal" onclick="closeFeedbackModal()">&times;</span>
+        <h2 style="margin-top: 0; color: #1f2937">
+          How satisfied are you with this activity?
+        </h2>
+
+        <p style="color: #6b7280; font-size: 14px" id="activityNameDisplay"></p>
+
+        <!-- Star Rating -->
+        <div class="star-rating" id="starRating">
+          <span class="star" onclick="setRating(1)" data-rating="1">★</span>
+          <span class="star" onclick="setRating(2)" data-rating="2">★</span>
+          <span class="star" onclick="setRating(3)" data-rating="3">★</span>
+          <span class="star" onclick="setRating(4)" data-rating="4">★</span>
+          <span class="star" onclick="setRating(5)" data-rating="5">★</span>
+        </div>
+
+        <!-- Rating Labels -->
+        <p
+          style="color: #6b7280; font-size: 12px; margin-top: -10px"
+          id="ratingLabel"
+        >
+          Click to rate
+        </p>
+
+        <!-- Optional Comment -->
+        <div style="margin: 20px 0">
+          <label
+            for="feedbackComment"
+            style="
+              display: block;
+              font-weight: 600;
+              color: #1f2937;
+              margin-bottom: 8px;
+            "
+          >
+            Optional: Add a comment
+          </label>
+          <textarea
+            id="feedbackComment"
+            placeholder="Tell us what you think..."
+            style="
+              width: 100%;
+              padding: 10px;
+              border: 1px solid #d1d5db;
+              border-radius: 6px;
+              font-family: Arial;
+              font-size: 14px;
+              resize: vertical;
+              min-height: 80px;
+              box-sizing: border-box;
+            "
+          >
+          </textarea>
+        </div>
+
+        <!-- Email (Optional) -->
+        <div style="margin: 20px 0">
+          <label
+            for="feedbackEmail"
+            style="
+              display: block;
+              font-weight: 600;
+              color: #1f2937;
+              margin-bottom: 8px;
+            "
+          >
+            Email (optional)
+          </label>
+          <input
+            type="email"
+            id="feedbackEmail"
+            placeholder="your@email.com"
+            style="
+              width: 100%;
+              padding: 10px;
+              border: 1px solid #d1d5db;
+              border-radius: 6px;
+              font-size: 14px;
+              box-sizing: border-box;
+            "
+          />
+        </div>
+
+        <!-- Buttons -->
+        <div
+          style="
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 25px;
+          "
+        >
+          <button
+            onclick="closeFeedbackModal()"
+            style="
+              padding: 10px 20px;
+              background-color: #e5e7eb;
+              color: #1f2937;
+              border: none;
+              border-radius: 6px;
+              cursor: pointer;
+              font-weight: 600;
+            "
+          >
+            Cancel
+          </button>
+          <button
+            onclick="submitFeedback()"
+            style="
+              padding: 10px 20px;
+              background-color: #3b82f6;
+              color: white;
+              border: none;
+              border-radius: 6px;
+              cursor: pointer;
+              font-weight: 600;
+            "
+          >
+            Submit Feedback
+          </button>
+        </div>
+
+        <p
+          id="feedbackStatus"
+          style="
+            color: #10b981;
+            text-align: center;
+            margin-top: 15px;
+            font-size: 14px;
+          "
+        ></p>
       </div>
     </div>
 
@@ -21,33 +322,45 @@
       // ============================================
       // FIREBASE SETUP
       // ============================================
-      // ... your firebaseConfig object ...
-      
-      // ... rest of your JavaScript functions (openFeedbackModal, setRating, etc.) ...
+      const firebaseConfig = {
+        apiKey: "AIzaSyDXWd8IFaOL5Q5MFvcSjH5gm4VdS3BD56M",
+        authDomain: "prompt-results.firebaseapp.com",
+        projectId: "prompt-results",
+        storageBucket: "prompt-results.firebasestorage.app",
+        messagingSenderId: "119391589830",
+        appId: "1:119391589830:web:47d8c1b7307e4002eacec7",
+        measurementId: "G-D35XB78NJN",
+      };
 
-      // ... The render function and switchTab function ...
-      
-      render();
-    </script>
+      // Initialize Firebase
+      let db = null;
+      let firebaseReady = false;
 
-    <script>
-      function initializeFirebase() {
-        try {
-          // The firebase object should now exist because the scripts above executed synchronously.
-          if (firebase.apps.length === 0) {
-            firebase.initializeApp(firebaseConfig);
-          }
-          db = firebase.firestore();
-          firebaseReady = true;
-          console.log("✅ Firebase initialized successfully!");
-        } catch (error) {
-          console.error("Firebase initialization error:", error);
-          firebaseReady = false;
-          db = null;
-        }
+      try {
+        // Initialize Firebase app
+        firebase.initializeApp(firebaseConfig);
+
+        // Get Firestore instance
+        db = firebase.firestore();
+
+        // Mark Firebase as ready
+        firebaseReady = true;
+
+        console.log("✓ Firebase initialized successfully");
+        console.log("Firebase ready:", firebaseReady);
+        console.log("DB:", db);
+      } catch (error) {
+        console.error("Error initializing Firebase:", error);
+        firebaseReady = false;
       }
-      
-      initializeFirebase();
+
+      // ============================================
+      // FEEDBACK MODAL VARIABLES
+      // ============================================
+      let currentActivityName = "";
+      let currentActivityType = "";
+      let currentRating = 0;
+      let clientSatisfactionStats = {};
     </script>
   </body>
 </html>
