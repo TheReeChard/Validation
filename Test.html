@@ -324,7 +324,7 @@
       </div>
     </div>
 
-    <script defer>
+    <script>
       // ============================================
       // FIREBASE SETUP
       // ============================================
@@ -341,25 +341,6 @@
       // Initialize Firebase
       let db = null;
       let firebaseReady = false;
-
-      function initializeFirebase() {
-        try {
-          // Check if app already initialized
-          if (firebase.apps.length === 0) {
-            firebase.initializeApp(firebaseConfig);
-          }
-          db = firebase.firestore();
-          firebaseReady = true;
-          console.log("✅ Firebase initialized successfully!");
-        } catch (error) {
-          console.error("Firebase initialization error:", error);
-          firebaseReady = false;
-          db = null;
-        }
-      }
-
-      // The defer attribute ensures Firebase SDK is loaded before this runs
-      initializeFirebase();
 
       // ============================================
       // FEEDBACK MODAL VARIABLES
@@ -2785,6 +2766,26 @@
       }
 
       render();
+    </script>
+
+    <!-- Initialize Firebase after all other scripts load -->
+    <script>
+      function initializeFirebase() {
+        try {
+          if (firebase.apps.length === 0) {
+            firebase.initializeApp(firebaseConfig);
+          }
+          db = firebase.firestore();
+          firebaseReady = true;
+          console.log("✅ Firebase initialized successfully!");
+        } catch (error) {
+          console.error("Firebase initialization error:", error);
+          firebaseReady = false;
+          db = null;
+        }
+      }
+
+      initializeFirebase();
     </script>
   </body>
 </html>
