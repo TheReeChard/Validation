@@ -336,21 +336,44 @@
       // Initialize Firebase
       let db = null;
       let firebaseReady = false;
+      let firebaseRetries = 0;
+      const maxRetries = 20; // 10 seconds max (20 * 500ms)
 
-      try {
-        if (typeof firebase !== "undefined") {
-          firebase.initializeApp(firebaseConfig);
-          db = firebase.firestore();
-          firebaseReady = true;
-          console.log("✓ Firebase initialized successfully");
-          console.log("Firebase ready:", firebaseReady);
-          console.log("DB:", db);
-        } else {
-          console.error("Firebase SDK not loaded");
+      function initializeFirebaseApp() {
+        try {
+          if (typeof firebase !== "undefined") {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
+            firebaseReady = true;
+            console.log("✓ Firebase initialized successfully");
+            console.log("Firebase ready:", firebaseReady);
+            console.log("DB:", db);
+          } else {
+            firebaseRetries++;
+            if (firebaseRetries < maxRetries) {
+              console.error("Firebase SDK not loaded, retrying... (" + firebaseRetries + "/" + maxRetries + ")");
+              // Retry after 500ms
+              setTimeout(initializeFirebaseApp, 500);
+            } else {
+              console.error("Firebase SDK failed to load after " + maxRetries + " attempts");
+            }
+          }
+        } catch (error) {
+          console.error("Error initializing Firebase:", error);
+          firebaseReady = false;
+          firebaseRetries++;
+          if (firebaseRetries < maxRetries) {
+            setTimeout(initializeFirebaseApp, 500);
+          }
         }
-      } catch (error) {
-        console.error("Error initializing Firebase:", error);
-        firebaseReady = false;
+      }
+
+      // Wait for DOM to be ready, then initialize Firebase
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initializeFirebaseApp);
+      } else {
+        // DOM is already loaded
+        setTimeout(initializeFirebaseApp, 100);
       }
 
       // ============================================
@@ -2838,7 +2861,29 @@
 
       render();
 
-      loadClientSatisfactionStats();
+      // Wait for Firebase to be ready, then load client satisfaction stats
+      let statsRetries = 0;
+      const maxStatsRetries = 30; // 15 seconds max (30 * 500ms)
+
+      function tryLoadStats() {
+        console.log("Checking Firebase readiness... Ready:", firebaseReady, "DB:", db !== null);
+        if (firebaseReady && db) {
+          console.log("Firebase ready! Loading client satisfaction stats...");
+          loadClientSatisfactionStats();
+        } else {
+          statsRetries++;
+          if (statsRetries < maxStatsRetries) {
+            console.log("Firebase not ready yet. Retrying... (" + statsRetries + "/" + maxStatsRetries + ")");
+            // Retry after 500ms
+            setTimeout(tryLoadStats, 500);
+          } else {
+            console.warn("Firebase failed to initialize after 15 seconds. Proceeding without it.");
+          }
+        }
+      }
+
+      // Give Firebase a moment to initialize
+      setTimeout(tryLoadStats, 500);
     </script>
 
     <!-- Removed separate Firebase initialization script - now handled inline -->
