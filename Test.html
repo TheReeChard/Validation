@@ -332,17 +332,37 @@
         measurementId: "G-D35XB78NJN",
       };
 
-      // Initialize Firebase with error handling
+      // Initialize Firebase with retry logic
       let db = null;
-      try {
-        firebase.initializeApp(firebaseConfig);
-        db = firebase.firestore();
-      } catch (error) {
-        console.error(
-          "Firebase initialization error. Please configure your Firebase credentials.",
-          error
-        );
-        db = null;
+      let firebaseReady = false;
+
+      function initializeFirebase() {
+        if (typeof firebase === "undefined") {
+          console.warn("Firebase SDK not loaded yet, retrying...");
+          setTimeout(initializeFirebase, 1000);
+          return;
+        }
+
+        try {
+          // Check if app already initialized
+          if (firebase.apps.length === 0) {
+            firebase.initializeApp(firebaseConfig);
+          }
+          db = firebase.firestore();
+          firebaseReady = true;
+          console.log("✅ Firebase initialized successfully!");
+        } catch (error) {
+          console.error("Firebase initialization error:", error);
+          firebaseReady = false;
+          db = null;
+        }
+      }
+
+      // Start initialization when page loads
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initializeFirebase);
+      } else {
+        initializeFirebase();
       }
 
       // ============================================
