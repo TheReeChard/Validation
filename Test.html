@@ -424,10 +424,11 @@
 
       // Submit feedback to Firebase
       function submitFeedback() {
-        if (!db) {
+        if (!firebaseReady || !db) {
           alert(
-            "Firebase not configured. Please update your Firebase credentials in the code."
+            "Firebase is still loading. Please wait a moment and try again."
           );
+          console.log("Firebase ready:", firebaseReady, "DB:", db);
           return;
         }
 
@@ -479,8 +480,8 @@
       // ============================================
 
       async function loadClientSatisfactionStats() {
-        if (!db) {
-          console.log("Firebase not configured - skipping stats load");
+        if (!firebaseReady || !db) {
+          console.log("Firebase not ready yet - skipping stats load");
           return;
         }
 
@@ -564,8 +565,15 @@
         container.innerHTML = html;
       }
 
-      // Load stats when page loads
-      loadClientSatisfactionStats();
+      // Load stats when Firebase is ready
+      function waitAndLoadStats() {
+        if (firebaseReady) {
+          loadClientSatisfactionStats();
+        } else {
+          setTimeout(waitAndLoadStats, 500);
+        }
+      }
+      waitAndLoadStats();
 
       const app = document.getElementById("root");
       let activeTab = "coloring";
