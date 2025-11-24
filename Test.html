@@ -174,7 +174,8 @@
         color: #fbbf24;
       }
     </style>
-    <!-- Fixed Firebase SDK URLs - changed from firebaseapp to firebasejs and added -compat versions -->
+    <!-- Firebase SDK -->
+    <!-- Fixed Firebase CDN URLs and removed defer to load synchronously -->
     <script src="https://www.gstatic.com/firebasejs/11.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore-compat.js"></script>
   </head>
@@ -337,18 +338,16 @@
       let firebaseReady = false;
 
       try {
-        // Initialize Firebase app
-        firebase.initializeApp(firebaseConfig);
-
-        // Get Firestore instance
-        db = firebase.firestore();
-
-        // Mark Firebase as ready
-        firebaseReady = true;
-
-        console.log("✓ Firebase initialized successfully");
-        console.log("Firebase ready:", firebaseReady);
-        console.log("DB:", db);
+        if (typeof firebase !== "undefined") {
+          firebase.initializeApp(firebaseConfig);
+          db = firebase.firestore();
+          firebaseReady = true;
+          console.log("✓ Firebase initialized successfully");
+          console.log("Firebase ready:", firebaseReady);
+          console.log("DB:", db);
+        } else {
+          console.error("Firebase SDK not loaded");
+        }
       } catch (error) {
         console.error("Error initializing Firebase:", error);
         firebaseReady = false;
@@ -361,16 +360,6 @@
       let currentActivityType = "";
       let currentRating = 0;
       let clientSatisfactionStats = {};
-
-      // Log Firebase status for troubleshooting
-      console.log("[v0] Firebase SDK loaded:", typeof firebase !== "undefined");
-      console.log("[v0] Firebase apps:", firebase.apps.length);
-      console.log(
-        "[v0] Firestore available:",
-        typeof firebase.firestore !== "undefined"
-      );
-      console.log("[v0] Firebase ready status:", firebaseReady);
-      console.log("[v0] Database instance:", db ? "Available" : "Null");
 
       // ============================================
       // FEEDBACK MODAL FUNCTIONS
@@ -432,8 +421,9 @@
 
         if (!firebaseReady || !db) {
           alert(
-            "Firebase is not initialized. Please check the console for details."
+            "Firebase is still loading. Please wait a moment and try again."
           );
+          console.log("Firebase ready:", firebaseReady, "DB:", db);
           console.error(
             "[v0] Firebase not ready. Ready:",
             firebaseReady,
@@ -469,6 +459,7 @@
             userAgent: navigator.userAgent.substring(0, 100),
           })
           .then(() => {
+            // Added logging for successful submission
             console.log("[v0] Feedback submitted successfully!");
             document.getElementById("feedbackStatus").textContent =
               "✓ Thank you! Feedback submitted";
@@ -491,19 +482,2289 @@
 
       // Load client satisfaction stats from Firestore
       function loadClientSatisfactionStats() {
-        // Placeholder function for loading stats
-        // Implement Firestore query to fetch stats
+        if (!firebaseReady || !db) {
+          console.log("[v0] Cannot load stats - Firebase not ready");
+          return;
+        }
+
         console.log("[v0] Loading client satisfaction stats...");
-        // Example: db.collection("feedback").get().then(snapshot => { ... });
+
+        db.collection("feedback")
+          .get()
+          .then((snapshot) => {
+            clientSatisfactionStats = {};
+            snapshot.forEach((doc) => {
+              const data = doc.data();
+              const type = data.activityType;
+
+              if (!clientSatisfactionStats[type]) {
+                clientSatisfactionStats[type] = {
+                  totalRatings: 0,
+                  sumRatings: 0,
+                  count: 0,
+                };
+              }
+
+              clientSatisfactionStats[type].totalRatings += data.rating;
+              clientSatisfactionStats[type].sumRatings += data.rating;
+              clientSatisfactionStats[type].count += 1;
+            });
+
+            console.log("[v0] Stats loaded:", clientSatisfactionStats);
+          })
+          .catch((error) => {
+            console.error("[v0] Error loading stats:", error);
+          });
       }
 
       // Display client satisfaction stats
       function displayClientSatisfactionStats() {
-        // Placeholder function for displaying stats
-        // Implement logic to display stats based on clientSatisfactionStats
-        console.log("[v0] Displaying client satisfaction stats...");
-        // Example: document.getElementById("someElement").textContent = JSON.stringify(clientSatisfactionStats);
+        const container = document.getElementById("clientStatsContainer");
+
+        if (!container) {
+          console.log("[v0] Stats container not found");
+          return;
+        }
+
+        if (Object.keys(clientSatisfactionStats).length === 0) {
+          container.innerHTML =
+            '<p style="color: #6b7280; text-align: center; grid-column: 1/-1;">No feedback received yet. Share this dashboard with clients to collect ratings!</p>';
+          return;
+        }
+
+        let html = "";
+        for (const [type, stats] of Object.entries(clientSatisfactionStats)) {
+          const avgRating = (stats.sumRatings / stats.count).toFixed(1);
+          html += `
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 8px; color: white;">
+              <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">${type}</h3>
+              <p style="font-size: 28px; font-weight: bold; margin: 10px 0;">⭐ ${avgRating}</p>
+              <p style="font-size: 12px; opacity: 0.9;">${stats.count} rating${
+            stats.count !== 1 ? "s" : ""
+          }</p>
+            </div>
+          `;
+        }
+        container.innerHTML = html;
       }
+
+      // ============================================
+      // DASHBOARD LOGIC
+      // ============================================
+      const app = document.getElementById("root");
+      let activeTab = "coloring";
+      let expandedDropdowns = {};
+
+      // IMAGE NAMING CONVENTION:
+      // Coloring Page: images/coloring_1.png, coloring_2.png, etc.
+      // Word Search: images/wordSearch_1.png, wordSearch_2.png, etc.
+      // Spot the Difference: images/spotDifference_1.png, spotDifference_2.png, etc.
+      // Activity Game: images/activityGame_1.png, activityGame_2.png, etc.
+      // Hidden Objects: images/hiddenObjects_1.png, hiddenObjects_2.png, etc.
+
+      const spotTheDifferenceTests = [
+        {
+          id: 1,
+          test: "Beach Scene Differences",
+          passed: true,
+          satisfaction: true,
+          result:
+            "Picture asset generated successfully with clear visual differences",
+          image: "images/spotDifference_1.png",
+        },
+        {
+          id: 2,
+          test: "Zoo Animals Spot Change",
+          passed: true,
+          satisfaction: true,
+          result: "Picture asset generated successfully with animal variations",
+          image: "images/spotDifference_2.png",
+        },
+        {
+          id: 3,
+          test: "Classroom Objects Hunt",
+          passed: false,
+          satisfaction: false,
+          result:
+            "Failed to generate proper classroom scene with adequate differences",
+          image: "images/spotDifference_3.png",
+        },
+        {
+          id: 4,
+          test: "Garden Creatures Differences",
+          passed: true,
+          satisfaction: true,
+          result: "Picture asset generated with visible creature differences",
+          image: "images/spotDifference_4.png",
+        },
+        {
+          id: 5,
+          test: "Space Scene Spot Changes",
+          passed: true,
+          satisfaction: true,
+          result: "Picture asset generated successfully with cosmic elements",
+          image: "images/spotDifference_7.png",
+        },
+        {
+          id: 6,
+          test: "Forest Animals Differences",
+          passed: false,
+          satisfaction: false,
+          result:
+            "Scene quality below standards and did not meet validation requirements",
+          image: "images/spotDifference_6.png",
+        },
+        {
+          id: 7,
+          test: "Space Scene Spot Changes",
+          passed: true,
+          satisfaction: true,
+          result: "Picture asset generated successfully with cosmic elements",
+          image: "images/spotDifference_7.png",
+        },
+        {
+          id: 8,
+          test: "Playground Objects Hunt",
+          passed: true,
+          satisfaction: true,
+          result: "Clear differences generated in playground scene",
+          image: "images/spotDifference_8.png",
+        },
+        {
+          id: 9,
+          test: "Kitchen Scene Differences",
+          passed: true,
+          satisfaction: true,
+          result: "Kitchen items successfully differentiated",
+          image: "images/spotDifference_9.png",
+        },
+        {
+          id: 10,
+          test: "Bedroom Objects Spot",
+          passed: true,
+          satisfaction: true,
+          result: "Bedroom scene with clear object variations created",
+          image: "images/spotDifference_10.png",
+        },
+      ];
+
+      const activityGameTests = [
+        {
+          id: 1,
+          test: "Memory Match Game",
+          passed: true,
+          satisfaction: false,
+          result:
+            "Activity generated and functional - did not meet quality validation standards",
+          image: "",
+          content: `<div style="font-family: Arial, sans-serif; color: #333;">
+<h3 style="margin-top: 0;">🌿 Nature's Resilience Collage 🌳</h3>
+<p><strong>A Collaborative, Mindful Activity for Adolescents (Ages 12-15)</strong></p>
+
+<h4>🎯 Activity Goal</h4>
+<p>To provide a calm, low-pressure creative outlet where teens explore themes of strength, growth, and change using nature as a metaphor. The activity focuses on process over perfection and offers personalized space within a collaborative group setting.</p>
+
+<h4>🧑‍🤝‍🧑 Target Group</h4>
+<ul>
+  <li><strong>Ages:</strong> 12–15 years old</li>
+  <li><strong>Group Size:</strong> Up to 10 children at a long table</li>
+  <li><strong>Adaptations:</strong> Designed to accommodate mental health issues (anxiety, depression, low motivation) through choice, control, and non-judgmental expression.</li>
+</ul>
+
+<h4>📋 Necessary Materials (Minimal & Group-Friendly)</h4>
+<table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+  <tr style="background-color: #f3f4f6;">
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Item</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Purpose</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Notes</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Large Roll of Paper</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">The collaborative "canvas" or "forest floor"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">At least 6–8 feet long to accommodate 10 teens</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Old Magazines/Newspapers</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Source material for natural images</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Focus on images that evoke calm/strength</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Glue Sticks</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">For low-mess collage application</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">1 per 2-3 teens</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Markers/Colored Pencils</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">For personalizing and adding text/drawings</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Provide a variety of colors</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Scissors</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">For cutting images</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Safe, blunt-tip scissors (5 pairs)</td>
+  </tr>
+</table>
+
+<h4>🕹️ Activity Instructions (For Staff/Facilitator)</h4>
+<p><strong>Preparation (5 minutes):</strong> Roll out the long paper down the center of the table. Place all materials within easy reach of every participant. Introduce the concept of resilience in nature.</p>
+
+<p><strong>Playtime (30–40 minutes):</strong></p>
+<ul>
+  <li><strong>Individual Exploration (10-15 min):</strong> Ask participants to find images that represent how they feel strong, or how they want to grow.</li>
+  <li><strong>Collective Building (15-20 min):</strong> Encourage gluing images onto the long paper to build a shared "Nature of Us" mural.</li>
+  <li><strong>Personalizing (5-10 min):</strong> Use markers to draw connecting lines, add words (Hope, Breathe, Grow).</li>
+  <li><strong>Optional Sharing/Closing:</strong> End by looking at the completed mural together.</li>
+</ul>
+
+<h4>🧠 Adaptations for Mental Health Support</h4>
+<table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+  <tr style="background-color: #f3f4f6;">
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Feature</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Adaptation/Action</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Staff Prompt</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Anxiety/Overwhelm</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Emphasize choice and control. Participants choose their level of involvement.</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"You can work on your own section, or watch others. Whatever feels best for you."</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Depression/Low Motivation</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Keep instructions simple. Start the collage for them with 1-2 powerful images.</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"Just finding one image that catches your eye is enough."</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Sensory Needs</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Provide calm atmosphere. Pre-cut nature images if scissors are triggering.</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Speak in calm, measured voice. Use slow, intentional movements.</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Interpersonal Comfort</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Ensure personal space. Emphasize parallel play (working next to, not with).</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Define reasonable working spaces along the table.</td>
+  </tr>
+</table>
+
+<h4>🧑‍⚕️ Hospital Staff Prompts & Gestures</h4>
+<table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+  <tr style="background-color: #f3f4f6;">
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Area</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Prompt/Phrase</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Recommended Gesture</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Non-Judgmental Focus</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"There are no grades. It's just about taking time for yourself."</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Maintain open posture. Work on your own contribution nearby.</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Encouraging Choice</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"Do you want to search for an image, or just write a word?"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Offer two materials physically to show they have options.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Validating Emotion</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"It takes strength just to be here. Being gentle with ourselves is brave."</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Offer a tissue or quiet seat. Gently place your hand near the paper.</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Closure</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"Look at this forest we built together. Every piece makes it stronger."</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Admire the mural. Invite all to quietly look at the achievement.</td>
+  </tr>
+</table>
+
+<h4>🏡 Adaptations for Different Settings</h4>
+<ul>
+  <li><strong>Small Space/Bedside:</strong> Use individual 8.5x11 paper pieces. The activity becomes a "Nature Journaling Page."</li>
+  <li><strong>Minimal Materials:</strong> Use large paper with markers and the prompt "Draw one thing in nature that reminds you to breathe."</li>
+  <li><strong>Outdoor Setting:</strong> Allow participants to collect safe natural items (leaves, twigs) and glue them onto the paper.</li>
+</ul>
+</div>`,
+        },
+        {
+          id: 2,
+          test: "Pattern Recognition Activity",
+          passed: true,
+          satisfaction: true,
+          result: "fully functional",
+          image: "",
+          content: `<div style="font-family: Arial, sans-serif; color: #333;">
+<h3 style="margin-top: 0;">🕷️ Bug & Spider Bedside Activity 🐛</h3>
+<p><strong>A Tactile & Imaginative Activity for Children (Ages 4-6)</strong></p>
+
+<h4>🎯 Activity Goal</h4>
+<p>To encourage fine motor skills, tactile exploration, imaginative storytelling, and cooperative play with minimal materials and full accessibility for children with varying abilities, including partial blindness.</p>
+
+<h4>🧑‍🤝‍🧑 Target Group</h4>
+<ul>
+  <li><strong>Ages:</strong> 4–6 years old</li>
+  <li><strong>Group Size:</strong> 1 child (can be adapted for small groups)</li>
+  <li><strong>Setting:</strong> Bedside or hospital bed</li>
+  <li><strong>Mobility Level:</strong> Very low; suitable for full bed rest</li>
+  <li><strong>Adaptations:</strong> Designed for tactile learners and children with partial blindness or low vision.</li>
+</ul>
+
+<h4>📋 Necessary Materials (Minimal & Bedside-Friendly)</h4>
+<table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+  <tr style="background-color: #f3f4f6;">
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Item</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Purpose</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Notes</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">10–15 Small Objects</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">The "bugs" to rescue</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Cotton balls, beads, stickers, paper dots, felt pieces</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;">1 Long Shoelace, Ribbon, or String</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">The "spider web"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Lay across the blanket in zig-zag or crisscross shape</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Optional: Small Bowl or Cup</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">To collect rescued bugs</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Makes cleanup easy and adds to the narrative</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Optional: Textured Stickers or Tape</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Vision accommodations</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Help child track the web by touch</td>
+  </tr>
+</table>
+
+<h4>🕹️ Activity Instructions (For Staff/Facilitator)</h4>
+
+<p><strong>Setup:</strong></p>
+<ol>
+  <li>Lay the string across the child's blanket in a zig-zag or crisscross shape—this is the "spider web."</li>
+  <li>Place the "bugs" around the web or gently place some directly on the web.</li>
+  <li>Place an optional bowl or cup nearby to collect rescued bugs.</li>
+</ol>
+
+<p><strong>Playtime (10–15 minutes):</strong></p>
+<ol>
+  <li>Ask the child to pick up each bug and place it in the cup or gently move it to one end of the web.</li>
+  <li>Use fun prompts to encourage engagement and storytelling.</li>
+  <li>After the bugs are moved, children can help "reset the web" by repositioning the string for another round.</li>
+</ol>
+
+<h4>🧑‍⚕️ Hospital Staff Prompts & Gestures</h4>
+<table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+  <tr style="background-color: #f3f4f6;">
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Area</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Prompt/Phrase</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Recommended Gesture</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Engagement</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"Oh no! A bug is stuck in the web! Can the spider rescue it?"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Use excited, playful tone. Gently tap the child's hand to guide them toward the object.</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Tactile Exploration</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"Can you find a soft bug? A bumpy bug? A smooth bug?"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Describe textures. Guide the child's fingers to feel the different materials.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Counting & Celebration</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"Let's count how many bugs escaped! One, two, three... Wonderful!"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Count aloud. Clap or give gentle praise. Use a celebratory tone.</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Storytelling</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"The spider saved the bug! Great rescue!"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Use animated voice and gestures to bring the story to life.</td>
+  </tr>
+</table>
+
+<h4>👁️ Adaptations for Partial Blindness / Low Vision</h4>
+<ul>
+  <li><strong>Textured Objects:</strong> Use textured objects (felt, fuzzy balls, crinkled foil) so children can identify bugs by touch as well as sight.</li>
+  <li><strong>Textured Web:</strong> Add small pieces of textured tape to the spider web string to help the child track it by touch.</li>
+  <li><strong>Verbal Announcements:</strong> Announce every movement: "I'm placing a bug on the top of the web. It's a fuzzy one."</li>
+  <li><strong>Tactile Choices:</strong> Provide choices using tactile differences: "Find the smooth bug" vs. "Find the fuzzy bug" vs. "Find the crinkly bug."</li>
+  <li><strong>Spatial Guidance:</strong> Describe positions using simple terms: "near your knee," "near your left hand," "at the top of the blanket."</li>
+</ul>
+
+<h4>🌍 Adaptations for Different Settings</h4>
+<ul>
+  <li><strong>Full Bed Rest:</strong> Place bugs within easy reach; staff assists with web setup and resets.</li>
+  <li><strong>Limited Mobility:</strong> Allow child to direct another person verbally to move the bugs. Child remains in one position while staff does the physical work.</li>
+  <li><strong>Group of Five Children:</strong> Each child gets their own mini-web (shorter strings). Everyone races to save their bugs at the same time.</li>
+  <li><strong>Outpatient Room or Play Area:</strong> Create a larger shared web on a table for collaborative play. Multiple children work together on one big web.</li>
+</ul>
+
+<h4>⚠️ Safety Notes</h4>
+<ul>
+  <li><strong>Supervise Small Objects Closely:</strong> Avoid choking hazards. Keep bugs appropriately sized.</li>
+  <li><strong>Avoid Sharp Items:</strong> Use only soft, rounded objects (no sharp or rigid items).</li>
+  <li><strong>String Safety:</strong> Ensure string or ribbon is never wrapped around fingers or limbs. Keep string loose and flexible.</li>
+  <li><strong>Regular Checks:</strong> Periodically ensure all bugs are accounted for and no materials are damaged or pose a hazard.</li>
+</ul>
+
+<h4>🎯 Key Benefits</h4>
+<p>This activity promotes fine motor skills, tactile exploration, imaginative storytelling, and cooperative play—all with minimal materials and full accessibility for children with varying abilities. It's perfect for bedside use and highly adaptable to different levels of mobility and vision.</p>
+</div>`,
+        },
+        {
+          id: 3,
+          test: "Color Sorting Game",
+          passed: true,
+          satisfaction: true,
+          result:
+            "Fortnite-themed activity designed successfully with fun gameplay mechanics",
+          image: "",
+          content: `<div style="font-family: Arial, sans-serif; color: #333;">
+<h3 style="margin-top: 0;">🗺️ Fortnite "Loot Map" Memory Match 💎</h3>
+<p><strong>A Strategy and Memory Game for Kids (Ages 8-9)</strong></p>
+
+<h4>🎯 Activity Goal</h4>
+<p>To engage children in a fun, strategic memory game inspired by Fortnite's map and "loot," encouraging gentle fine motor skills, focus, and teamwork (or friendly competition).</p>
+
+<h4>🧑‍🤝‍🧑 Target Group</h4>
+<ul>
+  <li><strong>Ages:</strong> 8–9 years old</li>
+  <li><strong>Group Size:</strong> 2 children (can be adapted for individual play or up to 3)</li>
+  <li><strong>Adaptations:</strong> Designed to accommodate children with arthritis, focusing on minimal hand strain.</li>
+</ul>
+
+<h4>📋 Necessary Materials (Minimal & Table-Friendly)</h4>
+<table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+  <tr style="background-color: #f3f4f6;">
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Item</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Purpose</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Notes</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">12-16 Small Paper Squares</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">The "Map Tiles" or "Loot Cards"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">About 2x2 inches each. Need enough for 6-8 pairs.</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Markers, Crayons, or Colored Pencils</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">To draw Fortnite-themed "Loot Icons"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Focus on easy-grip options if available.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">A Clean, Flat Table Surface</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">The "Battle Royale Map" playing area</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Any table works great</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Optional: Small, Flat Counters</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">To mark "discovered" loot or "safe zones"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">E.g., poker chips, bottle caps</td>
+  </tr>
+</table>
+
+<h4>🕹️ Activity Instructions (For Staff/Facilitator)</h4>
+
+<p><strong>Preparation (5 minutes):</strong></p>
+<ul>
+  <li><strong>Create Loot Cards:</strong> Guide the children to draw pairs of simple, non-violent Fortnite-themed "loot" icons on paper squares. Examples: shield potion, medkit, llama, treasure chest, bush, supply drop, v-bucks.</li>
+  <li><strong>Shuffle & Lay Out:</strong> Once 6-8 pairs are drawn, shuffle them. Lay them face down in a grid on the table.</li>
+</ul>
+
+<p><strong>Playtime (10–15 minutes):</strong></p>
+<ul>
+  <li><strong>Introduce the Mission:</strong> "Welcome, Battle Royale Explorers! The storm is closing in, and we need to find valuable loot hidden across the map. Let's work together to find all the matching items!"</li>
+  <li><strong>Taking Turns:</strong> Player 1 gently flips over two cards to reveal the "loot."</li>
+  <li><strong>Matching:</strong> If a match, they get to keep the pair. If not, flip them back face down.</li>
+  <li><strong>Game End:</strong> The game ends when all pairs have been found. The player with the most pairs wins!</li>
+</ul>
+
+<h4>🖐️ Adaptations for Arthritis / Joint Pain</h4>
+<table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+  <tr style="background-color: #f3f4f6;">
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Feature</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Adaptation/Action</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Staff Prompt</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Card Manipulation</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Use slightly larger, thicker cards. Encourage whole hand or two fingers (index & middle) to lift cards, not pinching.</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"Try lifting the card with the flat of your fingers, like this."</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Drawing/Creating</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Provide chunky markers or adaptive grips. Allow pre-drawn cards or let child direct you on what to draw.</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"What's your favorite Fortnite item we can draw today?"</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Pacing</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Allow for slower turns and breaks. No timed rounds.</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"Take your time, there's no hurry. What's your strategy?"</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Alternative Actions</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Players can use a pointer stick to tap cards they want revealed, and staff flips them.</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Offer a pointer and demonstrate how to tap without pressing hard.</td>
+  </tr>
+</table>
+
+<h4>🧑‍⚕️ Hospital Staff Prompts & Gestures</h4>
+<table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+  <tr style="background-color: #f3f4f6;">
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Area</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Prompt/Phrase</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Recommended Gesture</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Encouragement</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"Awesome job remembering that! You're a true Battle Royale strategist!"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Give a thumbs-up. Make eye contact and smile.</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Strategy Focus</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"Which part of the map should we search next? Do you remember where that healing potion was?"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Point to different areas of the grid. Lean in conspiratorially.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Gentle Play</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"Remember to be gentle with our map cards. Let's make sure our hands stay comfortable."</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Gently demonstrate lifting a card with a flat hand or two fingers.</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Teamwork</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"Should we tell our teammate where the last V-bucks were? Teamwork makes the dream work!"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Encourage high-fives (if comfortable) for good memory finds.</td>
+  </tr>
+</table>
+
+<h4>🏡 Adaptations for Different Settings</h4>
+<ul>
+  <li><strong>Individual Play:</strong> The child can play against themselves, trying to clear the "map" in the fewest turns.</li>
+  <li><strong>Larger Group:</strong> If playing with 3 children, they can play as a team or in a 3-player competitive format.</li>
+  <li><strong>Limited Table Space:</strong> A large clipboard or sturdy pillow on the lap can serve as the playing surface.</li>
+  <li><strong>"Loot Box" Theme:</strong> Use actual small, safe objects (plastic army men, blocks, cotton balls) hidden under paper cups that are flipped over.</li>
+</ul>
+</div>`,
+        },
+        {
+          id: 4,
+          test: "Shape Matching Activity",
+          passed: true,
+          satisfaction: true,
+          result: "excellent results",
+          image: "",
+          content: `<div style="font-family: Arial, sans-serif; color: #333;">
+<h3 style="margin-top: 0;">🌳 Nature's Resilience Collage 🌿</h3>
+<p><strong>A Mental Health & Creative Activity for Adolescents (Ages 12-15)</strong></p>
+
+<h4>🎯 Activity Goal</h4>
+<p>To create a visual representation of personal strength and hope using nature-themed imagery. This low-stakes, non-verbal, and highly sensory activity promotes mindfulness, grounding, and the identification of inner strength (resilience). It allows for self-expression without the pressure of conversation or a 'perfect' result.</p>
+
+<h4>🧑‍🤝‍🧑 Target Group</h4>
+<ul>
+  <li><strong>Ages:</strong> 12–15 years old</li>
+  <li><strong>Group Size:</strong> Up to 10 children</li>
+  <li><strong>Setting:</strong> Long table (hospital common area or activity room)</li>
+  <li><strong>Time:</strong> 45–60 minutes</li>
+  <li><strong>Mental Health Focus:</strong> Resilience, growth, connection, grounding</li>
+</ul>
+
+<h4>🌿 Mental Health Purpose</h4>
+<p><strong>Key Concept:</strong> Nature is inherently resilient (trees grow after a storm, flowers bloom through cracks in pavement). Participants use this concept to reflect on their own ability to heal and grow. This activity promotes mindfulness and grounding while encouraging self-expression without the pressure of conversation.</p>
+
+<h4>🎨 Necessary Materials (Minimal)</h4>
+<table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+  <tr style="background-color: #f3f4f6;">
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Item</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Quantity</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Notes</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Foundation Paper</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">10 sheets (8.5x11)</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Sturdy cardstock in light colors. Less frustrating to work with.</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Nature Imagery</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">100-200 pictures</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Magazine clippings or printed photos. Focus on trees, water, mountains, sunsets, flowers, roots, birds. Pre-cut some for children with lower energy.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">PVA Glue Sticks</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">5-10</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Less messy than liquid glue</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Scissors</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">5-10</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Rounded safety tips. Staff can offer to pre-cut items.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Pens/Fine Markers</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">10</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">For optional labeling/writing</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Optional: Calming Music</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">1 device</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Instrumental music (nature sounds or light classical)</td>
+  </tr>
+</table>
+
+<h4>📝 Activity Instructions</h4>
+<p><strong>Title: My Inner Landscape</strong></p>
+
+<p><strong>Step 1: Gather Your Elements (5 min)</strong></p>
+<ul>
+  <li>Look through all the nature pictures.</li>
+  <li>Choose images that represent strength, hope, peace, or growth to you.</li>
+  <li>Pick as many as you like. There is no wrong choice.</li>
+</ul>
+
+<p><strong>Step 2: Find Your Foundation (5 min)</strong></p>
+<ul>
+  <li>On your cardstock, decide where you want your "Inner Landscape" to start.</li>
+  <li>Do you want it to feel grounded (bottom of the page) or airy (top)?</li>
+</ul>
+
+<p><strong>Step 3: Build Your Resilience (25 min)</strong></p>
+<ul>
+  <li>Tear or cut out the images you chose. Tearing can be very calming and sensory.</li>
+  <li>Use the glue stick to layer and place your images onto the foundation paper.</li>
+  <li>Overlap pieces to create texture and depth.</li>
+  <li>Let the pictures tell a story about your strength and how you keep growing.</li>
+</ul>
+
+<p><strong>Step 4: Name Your Strength (5 min - Optional)</strong></p>
+<ul>
+  <li>If you feel comfortable, use a marker to write a single word or phrase on the back of your collage.</li>
+  <li>Examples: Hope, Rooted, Survivor, Always Growing, Peace, Strong</li>
+</ul>
+
+<p><strong>Step 5: Share/Display (Optional)</strong></p>
+<ul>
+  <li>You can keep your collage private, or stand it up at your spot on the table for everyone to appreciate.</li>
+</ul>
+
+<h4>🩺 Hospital Staff Prompts & Gestures</h4>
+<table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+  <tr style="background-color: #f3f4f6;">
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Focus Area</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Staff Action/Prompt</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Why This Helps</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Starting/Anxiety</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"We are just going to choose pictures and glue them. You don't have to talk unless you want to."</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Reduces performance pressure and social anxiety. Provides a visual cue.</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Low Energy/Depression</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"If cutting feels tiring, you can tear the paper, or I can help pre-cut pieces."</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Lowers physical demand; offers help without pressuring the child.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Perfectionism/Frustration</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"There is no right way to do this. We're embracing nature's messiness—like a winding river or a fallen leaf."</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Re-frames mistakes as part of the creative process and the nature theme.</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Grounding</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"Focus on the feeling of the paper, the smell of the glue, or the sound of the scissors."</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Pulls focus away from internal distress onto present, non-threatening sensory input.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Conclusion</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"Thank you for sharing this space with us. Your piece is a powerful reminder of how much strength is inside you."</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Validates effort and reinforces the positive theme of resilience.</td>
+  </tr>
+</table>
+
+<h4>🌍 Adaptations for Different Settings</h4>
+<table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+  <tr style="background-color: #f3f4f6;">
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Setting</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Adaptation</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Rationale</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>In-Room/Bedside</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Use a clipboard or tray table. Pre-cut all images. Provide 3-5 foundation shapes instead of full sheet.</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Reduces clutter and fine motor demand; makes activity portable and less overwhelming.</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Low-Illumination/Sensory Sensitivity</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Use matte paper and imagery. Avoid bright, neon colors. Keep music instrumental and very quiet, or turn it off.</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Minimizes overstimulation of sight and sound, accommodating sensitivities often present with mental health concerns.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Extended Time</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">After the collage is dry, provide old journals or magazines and encourage finding words or short phrases (3-5 words) to add to the edges.</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Extends therapeutic benefit by introducing light verbal component without the stress of free writing.</td>
+  </tr>
+</table>
+
+<h4>🎯 Key Benefits</h4>
+<p>This activity promotes self-expression, grounding through sensory exploration, resilience-building through metaphor, and emotional healing. It's perfect for adolescents dealing with anxiety, depression, or other mental health challenges. The non-verbal nature allows for authentic expression without social pressure, while the nature theme reinforces hopeful messages about growth and strength.</p>
+</div>`,
+        },
+        {
+          id: 5,
+          test: "Sequence Building Game",
+          passed: true,
+          satisfaction: true,
+          result: "meets all requirements",
+          image: "",
+          content: `<div style="font-family: Arial, sans-serif; color: #333;">
+<h3 style="margin-top: 0;">🐻 Bear Finger Puppet Adventure 🎭</h3>
+<p><strong>A Visual, Tactile & Imaginative Activity for Young Children (Ages 3-6)</strong></p>
+
+<h4>💖 Activity Goal</h4>
+<p>To create and play with simple bear finger puppets, encouraging imaginative, non-verbal storytelling and fine motor skills. This activity is highly visual, tactile, and focuses on parallel play and observation—fully accessible for children who are deaf or hard-of-hearing.</p>
+
+<h4>🧑‍🤝‍🧑 Target Group</h4>
+<ul>
+  <li><strong>Ages:</strong> 3–6 years old</li>
+  <li><strong>Group Size:</strong> Up to 3 children</li>
+  <li><strong>Setting:</strong> Hospital floor (mat, small table, or bedside)</li>
+  <li><strong>Time:</strong> 20–30 minutes</li>
+  <li><strong>Inclusion Focus:</strong> Fully accessible for children who are deaf or hard-of-hearing. No spoken language required.</li>
+</ul>
+
+<h4>🎨 Necessary Materials (Minimal)</h4>
+<table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+  <tr style="background-color: #f3f4f6;">
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Item</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Quantity</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Notes</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Foundation Paper</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">3 sheets (8.5x11)</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Sturdy cardstock or construction paper in light colors</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Pre-Printed Bear Parts</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">1 sheet per child</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Template for head, ears, tummy, eyes, nose (see template below)</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Small Stickers</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Variety assortment</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Stars, dots, simple shapes. Easier than drawing for some.</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Glue Sticks</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">3</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Less messy than liquid glue</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Kid-Safe Scissors</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">3 (optional)</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Staff can pre-cut if needed</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Optional: Fabric Scraps</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Small assortment</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">For texture, glued on as "fur" tummy</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Optional: Small Box/Basket</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">1</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">To be a "bear cave" for play</td>
+  </tr>
+</table>
+
+<h4>📝 Activity Instructions</h4>
+<p><strong>Title: My Happy Bear Friend!</strong></p>
+<p><em>Note: Staff will use gestures and demonstration for each step. No verbal instructions needed.</em></p>
+
+<p><strong>Step 1: Meet Your Bear Pieces! (2 min)</strong></p>
+<ul>
+  <li>Staff places one sheet of pre-printed bear parts in front of each child.</li>
+  <li>Gesture: Point to the sheet, smile, make a "bear paw" shape with your hand.</li>
+</ul>
+
+<p><strong>Step 2: Cut or Tear! (5-7 min)</strong></p>
+<ul>
+  <li>Staff demonstrates cutting out ONE bear head, then shows tearing out ONE bear head.</li>
+  <li>Offers scissors and points to own fingers tearing. Allows choice.</li>
+  <li>Gesture: Show children how to carefully cut or tear. If a child struggles, gently offer to help or pre-cut pieces.</li>
+</ul>
+
+<p><strong>Step 3: Build Your Bear! (8-10 min)</strong></p>
+<ul>
+  <li>Staff demonstrates gluing the head, then ears, then eyes, nose, and tummy onto the body piece.</li>
+  <li>Shows where the finger hole is clearly.</li>
+  <li>Gesture: Point to glue stick, show "glue-glue-glue," then stick. Mimic the action for each part. If parts are glued over the finger hole, gently peel and reposition.</li>
+</ul>
+
+<p><strong>Step 4: Decorate Your Friend! (3-5 min)</strong></p>
+<ul>
+  <li>Staff opens the sticker container and puts one sticker on their own bear. Smiles.</li>
+  <li>Gesture: Offer the sticker container. Point to the bear, then to a sticker. If a child tries to eat a sticker, gently shake head "no" and redirect to gluing.</li>
+</ul>
+
+<p><strong>Step 5: Puppet Play Time! (Optional, 5-10 min)</strong></p>
+<ul>
+  <li>Staff puts their bear puppet on a finger, wiggles it, makes it "walk" on the table, makes it "sleep" in the optional box.</li>
+  <li>Gesture: Wiggle finger. Move hand slowly like a bear. Make a "sleep" gesture with hands folded.</li>
+  <li>This is for parallel play. No pressure to interact directly. Children can simply observe and mimic.</li>
+</ul>
+
+<h4>🩺 Hospital Staff Prompts & Gestures</h4>
+<table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+  <tr style="background-color: #f3f4f6;">
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Focus Area</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Staff Action/Gesture</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Why This Helps</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Starting/Engagement</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Smile broadly. Show a finished bear puppet. Wiggle it. Point to self, then to children, then to materials, then give "let's begin" nod.</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Invites participation, sets friendly tone, clearly indicates the activity is starting.</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Instructions</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Demonstrate every step slowly and clearly. Use exaggerated movements. Make eye contact often. For "glue," rub fingers. For "cut," make scissor motion. For "stick," press flat hand onto paper.</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Crucial for children who are deaf. Visual information is primary. Repetition and clarity are essential.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Problem Solving</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">If child struggles with cutting, offer scissors then demonstrate tearing. If they struggle with glue, demonstrate opening, rubbing, closing. Offer choices with open palms. Give "thumbs up" for effort, not just perfection.</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Provides clear alternatives and encouragement without verbal pressure.</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Encouragement</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Nod, smile, give "thumbs up" often. Point to child's progress and give approving nod. Gently tap their hand or arm to show attention and support.</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Builds confidence and shows appreciation for efforts, making the hospital environment feel safer and more positive.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Conclusion</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Put your bear puppet on your finger. Give a little wave "bye-bye" to each child's puppet. Put own puppet in "cave."</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Provides a clear, gentle ending to the activity. No need for verbal wrap-up.</td>
+  </tr>
+</table>
+
+<h4>🌍 Adaptations for Different Settings</h4>
+<table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+  <tr style="background-color: #f3f4f6;">
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Setting</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Adaptation</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Rationale</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>In-Room/Bedside</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Use small tray table or clipboard. Pre-cut all bear pieces. Focus on just assembling and decorating 1-2 puppets.</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Reduces mess, makes it manageable in limited space, and reduces fine motor demands for tired or limited mobility children.</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Low Energy/Focus</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Pre-cut all bear pieces. Focus only on gluing and decorating. Staff has pre-made puppet and guides child through decorating their own.</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Minimizes effort required; focuses on more immediately rewarding aspects of creation.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Group Play (Larger Space)</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">After puppets are made, set up "bear cave" (box) and "forest" (green blanket/towel). Encourage parallel play with puppets "exploring" or "sleeping."</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Expands imaginative play aspect if space and energy allow, promoting connection through shared activity.</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Sensory Sensitivity</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Use matte paper and simple, smooth stickers. Avoid scented materials. Ensure room is quiet and well-lit but not glaring.</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Creates calming environment, avoiding potential triggers for children with sensory processing differences.</td>
+  </tr>
+</table>
+
+<h4>📄 Pre-Printed Bear Parts Template</h4>
+<p>Each child's 8.5x11 sheet should include:</p>
+<ul style="margin-left: 20px;">
+  <li><strong>Main Body:</strong> Rectangle (approx. 3"x5") with a circle cut out (approx. 1" diameter) for the finger hole</li>
+  <li><strong>Head:</strong> Simple round or slightly oval shape (approx. 2" diameter)</li>
+  <li><strong>Ears:</strong> Two small semicircles or rounded triangles (approx. 0.75" each)</li>
+  <li><strong>Eyes:</strong> Two small circles (approx. 0.25" each)</li>
+  <li><strong>Nose:</strong> One small oval or triangle (approx. 0.5")</li>
+  <li><strong>Tummy:</strong> One slightly larger oval or circle (approx. 1.5")</li>
+</ul>
+<p>Parts should be spaced out on the page to make cutting or tearing easier.</p>
+
+<h4>🎯 Key Benefits</h4>
+<p>This activity is fully accessible for children who are deaf or hard-of-hearing, with no reliance on spoken or heard language. It promotes fine motor skills, imaginative play, visual communication, and connection through shared creative activity. Perfect for the hospital environment and highly adaptable to different mobility and sensory needs.</p>
+</div>`,
+        },
+        {
+          id: 6,
+          test: "Object Categorization",
+          passed: true,
+          satisfaction: true,
+          result: "well organized",
+          image: "",
+          content: `<div style="font-family: Arial, sans-serif; color: #333;">
+<h3 style="margin-top: 0;">🩺 "Doctor's Mystery Bag" – A Gentle Hospital-Themed Floor Activity</h3>
+
+<h4>🌟 Objective</h4>
+<p>Kids become "hospital detectives" who use gentle touch, observation, and imagination to identify mystery medical-themed items and use them in short, fun storytelling rounds.</p>
+
+<h4>📊 Activity Details</h4>
+<ul>
+  <li><strong>Age Range:</strong> 6–14</li>
+  <li><strong>Group Size:</strong> 4 children</li>
+  <li><strong>Energy Level:</strong> Very low; suitable for kids experiencing soreness or tiredness</li>
+  <li><strong>Setting:</strong> Floor (carpet, mat, blanket)</li>
+  <li><strong>Materials:</strong> Minimal & optional</li>
+</ul>
+
+<h4>📦 Materials Needed (Minimal)</h4>
+<table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+  <tr style="background-color: #f3f4f6;">
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Item</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Purpose</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Notes</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Small bag, pouch, or pillowcase</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">The "Doctor's Mystery Bag"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Any container works great</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;">6–10 small, safe items</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Mystery contents to identify</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Band-aid wrapper, cotton ball, tongue depressor, plastic spoon, toy animal, penlight, tape roll, gauze square</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Optional: Soft floor mat or blanket</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Comfortable seating</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">For extra comfort</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Optional: Sticky notes or scrap paper</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">For staff to write notes</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Record stories or guesses</td>
+  </tr>
+</table>
+
+<h4>📝 Setup</h4>
+<ul>
+  <li>Children sit in a circle on the floor, spaced far enough for comfort.</li>
+  <li>Place the mystery bag in the center.</li>
+  <li>All items are placed inside the bag where children cannot see them.</li>
+</ul>
+
+<h4>🎮 Activity Instructions</h4>
+
+<p><strong>Round 1: What's in the Bag?</strong></p>
+<ul>
+  <li>Child 1 gently reaches into the bag and touches an item without pulling it out.</li>
+  <li>They describe how it feels (soft, flat, round, smooth).</li>
+  <li>Others guess what it might be.</li>
+  <li>After 2–3 guesses, the child pulls it out and shows the group.</li>
+  <li><strong>Low-effort alternative:</strong> If reaching is uncomfortable, they may point and staff will pull the item for them.</li>
+</ul>
+
+<p><strong>Round 2: Doctor's Quick Story</strong></p>
+<ul>
+  <li>Each time an item is revealed, all children work together to build a short (10–15 seconds) story.</li>
+  <li><strong>Example:</strong> Item: Cotton ball → "A teddy bear has a tickle in his ear" or "Our robot patient needs clouds for its pillow."</li>
+  <li>Goal: collaborative, silly, easy storytelling with no physical strain.</li>
+</ul>
+
+<p><strong>Round 3: Team Diagnosis (Optional & Calm)</strong></p>
+<ul>
+  <li>With all items on the floor, children choose any two items.</li>
+  <li>They explain a gentle "doctor plan," such as using the tape to fix a torn chart or the spoon to listen to the toy's breathing.</li>
+  <li>This round encourages imagination but remains extremely low energy.</li>
+</ul>
+
+<h4>👩‍⚕️ Hospital Staff Prompts & Gestures</h4>
+<table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+  <tr style="background-color: #f3f4f6;">
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Area</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Prompt/Phrase</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Recommended Gesture</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Encouragement</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"Take your time."</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Soft pointing, thumbs-up, slow "your turn" hand sweep</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Reducing Pressure</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"You can describe instead of reaching. One word is enough!"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Gentle hand gestures. Offer alternatives with open posture.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Support</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"Want me to hold the item for you? Want me to pull it from the bag?"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Staff may pull items from the bag if children are tired.</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Sensory Labels</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"This one feels crinkly. It's a flat shape."</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Offer gentle sensory descriptions to help guide guesses.</td>
+  </tr>
+</table>
+
+<h4>💤 Soreness & Tiredness Accommodations</h4>
+<ul>
+  <li>Allow reclining positions or leaning on pillows.</li>
+  <li>Children may participate verbally only—no touching required.</li>
+  <li>Use lighter, softer items that don't require gripping.</li>
+  <li>Limit rounds to 10–20 minutes max; take breaks as needed.</li>
+  <li>Assign "story helper" roles so kids can choose easier tasks (naming, guessing, pointing).</li>
+</ul>
+
+<h4>🌍 Adaptations for Different Settings</h4>
+<ul>
+  <li><strong>Small Space:</strong> Children take turns holding the bag. Use fewer items (4–5).</li>
+  <li><strong>Larger Room:</strong> Create "patient stations" (Identify, Make a Story, Pretend Treatment). Children rotate gently or stay seated while stations rotate toward them.</li>
+  <li><strong>Bedside + Floor Mix:</strong> Children on the floor reveal items; bedside child gives the story or guesses. Staff carries items to and from the bedside.</li>
+  <li><strong>Very Low-Energy Version:</strong> Staff pulls each item out and children only make guesses or one-word stories.</li>
+</ul>
+
+<h4>🎯 Activity Goal</h4>
+<p>Promote imagination, teamwork, gentle sensory exploration, and positive association with medical themes—all while accommodating fatigue and making sure every child can participate at their comfort level.</p>
+</div>`,
+        },
+        {
+          id: 7,
+          test: "Logic Puzzle Activity",
+          passed: true,
+          satisfaction: true,
+          result: "engaging and functional",
+          image: "",
+          content: `<div style="font-family: Arial, sans-serif; color: #333;">
+<h3 style="margin-top: 0;">🎸 Rockstar Setlist Creator 🎤</h3>
+<p><strong>A Music & Personalization Activity for Children (Ages 6-14)</strong></p>
+
+<h4>🎯 Activity Goal</h4>
+<p>To engage children in a creative, low-effort activity where they design a personalized three-song setlist and listen to their selections. This promotes choice, control, and emotional expression through music.</p>
+
+<h4>🧑‍🤝‍🧑 Target Group</h4>
+<ul>
+  <li><strong>Ages:</strong> 6–14 years old</li>
+  <li><strong>Group Size:</strong> 1 child (can be adapted for pairs)</li>
+  <li><strong>Setting:</strong> Bedside or table</li>
+  <li><strong>Energy Level:</strong> Very low; suitable for children in hospital settings who need creative expression with minimal physical effort.</li>
+  <li><strong>Adaptations:</strong> Designed for children in hospital settings who need creative expression with minimal physical effort.</li>
+</ul>
+
+<h4>📋 Necessary Materials (Minimal & Bedside-Friendly)</h4>
+<table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+  <tr style="background-color: #f3f4f6;">
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Item</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Purpose</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Notes</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Paper or Clipboard</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">To write the setlist</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Any paper works; can be on tray or table</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Writing Tool (pencil, marker, pen)</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">For recording song choices</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Easy-grip options if needed</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Optional: Stickers</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">For child to "sign off" on songs</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Adds engagement and fun</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Music Playback Device</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">To play the selected songs</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Phone, tablet, speaker, or hospital audio system</td>
+  </tr>
+</table>
+
+<h4>🕹️ Activity Instructions (For Staff/Facilitator)</h4>
+
+<p><strong>Preparation (3 minutes):</strong></p>
+<ul>
+  <li><strong>Set the Stage:</strong> Place the paper and writing tool on the child's tray or table, easily reachable. Dim the room lights slightly if possible to create a calm, focused atmosphere.</li>
+  <li><strong>Pre-write the Categories:</strong> On the paper, staff should lightly draw or write three simple columns/sections:
+    <ul style="margin-top: 8px;">
+      <li>⚡️ Warm-Up Song (Energy UP)</li>
+      <li>😴 Chill Song (Calm DOWN)</li>
+      <li>🎤 All-Star Anthem (Just PLAIN FUN)</li>
+    </ul>
+  </li>
+</ul>
+
+<p><strong>Playtime (15–20 minutes):</strong></p>
+
+<p><strong>Introduce the Mission:</strong> Say softly: "You're a famous Rockstar today, and you need to design the perfect three-song setlist for your next concert. We'll pick the songs, and then we'll listen to them."</p>
+
+<p><strong>The Brainstorm (Low Effort):</strong></p>
+<ul>
+  <li>Ask guiding questions: "For the Warm-Up Song, what kind of feeling do you need right now? Fast and loud, or just a little bit peppy?"</li>
+  <li>"What's one of your favorite songs? It doesn't have to be rock, but if you can think of a fast song, let's put it on the list."</li>
+</ul>
+
+<p><strong>Recording the Choices:</strong></p>
+<ul>
+  <li>Staff should write the song titles (or a simple representation like a star or lightning bolt) based on the child's spoken or non-verbal choices.</li>
+  <li>The child can use stickers or a quick scribble to "sign off" on the song.</li>
+</ul>
+
+<p><strong>The Performance (The Reward):</strong></p>
+<ul>
+  <li>Once all three songs are chosen, dim the screen or set the paper aside.</li>
+  <li>Play the three selected songs, emphasizing the mood for each one.</li>
+  <li>Encourage the child to close their eyes and listen or gently tap a finger to the rhythm.</li>
+</ul>
+
+<h4>🧑‍⚕️ Hospital Staff Prompts & Gestures</h4>
+<table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+  <tr style="background-color: #f3f4f6;">
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Area</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Prompt/Phrase</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Recommended Gesture</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Encouragement</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"You have great taste in music! This setlist is going to be amazing."</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Thumbs-up. Warm smile. Lean in with genuine interest.</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Choice & Control</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"This is YOUR concert. Pick whatever makes you feel good."</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Open hand gesture. Point to the options on paper.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Listening Focus</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"Close your eyes if you want. Just let the music take you."</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Soft, calm voice. Gently lower the lights. Nod slowly to the rhythm.</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Celebration</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"You just created an awesome setlist! How do you feel?"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Gentle high-five (if comfortable). Offer a sticker or star.</td>
+  </tr>
+</table>
+
+<h4>💤 Low-Energy & Fatigue Accommodations</h4>
+<ul>
+  <li>Staff can write for the child if gripping a pencil is difficult.</li>
+  <li>Child can simply point or say song names; staff handles all writing.</li>
+  <li>Use simple icons (⭐, 🔥, 💙) instead of full song titles if needed.</li>
+  <li>Shorten the activity to 10 minutes if the child tires easily.</li>
+  <li>Allow the child to recline or rest while listening to the music.</li>
+</ul>
+
+<h4>🌍 Adaptations for Different Settings</h4>
+<ul>
+  <li><strong>Very Small Space/Bedside:</strong> Use a small clipboard or card. Reduce to 2 songs instead of 3.</li>
+  <li><strong>Pair Activity:</strong> Two children can design the setlist together and vote on songs.</li>
+  <li><strong>Group Version:</strong> Each child creates their own column on a large paper. Then listen to everyone's picks sequentially.</li>
+  <li><strong>Limited Music Access:</strong> Children can draw/describe their favorite songs instead of listening. Staff can describe what they imagine.</li>
+</ul>
+
+<h4>🎯 Key Benefits</h4>
+<p>This activity promotes emotional expression, gives children control over their environment, and provides a positive, calming experience through music—all with minimal physical effort.</p>
+</div>`,
+        },
+        {
+          id: 8,
+          test: "Counting Challenge Game",
+          passed: false,
+          satisfaction: false,
+          result: "Activity failed validation criteria and quality standards",
+          image: "",
+          content: `<div style="font-family: Arial, sans-serif; color: #333;">
+<h3 style="margin-top: 0;">🦒 Giraffe Neck Tower – A Bedside Stacking Game 🌿</h3>
+<p><strong>A Fine Motor & Friendly Competition Activity for Children (Ages 4-10)</strong></p>
+
+<h4>🎯 Activity Goal</h4>
+<p>To engage children in a gentle, low-pressure competitive stacking game that encourages fine motor skills, hand-eye coordination, and friendly competition while accommodating bedrest and limited mobility.</p>
+
+<h4>🧑‍🤝‍🧑 Target Group</h4>
+<ul>
+  <li><strong>Ages:</strong> 4–10 years old</li>
+  <li><strong>Group Size:</strong> 2 children (can be adapted for 1 child)</li>
+  <li><strong>Setting:</strong> Bedside or hospital bed</li>
+  <li><strong>Mobility Level:</strong> Limited; suitable for children on bedrest or with mobility restrictions</li>
+  <li><strong>Adaptations:</strong> Designed for children with limited hand strength or coordination needs.</li>
+</ul>
+
+<h4>📋 Necessary Materials (Minimal & Bedside-Friendly)</h4>
+<table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+  <tr style="background-color: #f3f4f6;">
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Item</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Purpose</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Notes</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">2 Small, Flat Bases</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">The "Giraffe Head" for each child</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Can be small foam squares, coasters, or sturdy bases</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;">20-30 Plastic Cups or Rings</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">The "Neck Segments" to stack</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Pre-counted piles (10-15 per child). Use lightweight, stable cups or rings.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Bed or Lap Surface</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">The play area</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Children can stack directly on their chest, lap, or on a stable tray table.</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Optional: Sticker Rewards</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">For celebrating winners</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">To reward effort and participation</td>
+  </tr>
+</table>
+
+<h4>🕹️ Activity Instructions (For Staff/Facilitator)</h4>
+
+<p><strong>Preparation (3 minutes):</strong></p>
+<ul>
+  <li><strong>Set the Stage:</strong> Ensure both children are lying comfortably. Raise the head of each bed slightly if possible.</li>
+  <li><strong>Position the Bases:</strong> Place the small, flat "Giraffe Head" base right on the chest or lap area of each child.</li>
+  <li><strong>Distribute Materials:</strong> Place the pre-counted pile of Neck Segments (cups/rings) next to each child's working hand.</li>
+</ul>
+
+<p><strong>Playtime (10–15 minutes):</strong></p>
+
+<p><strong>Introduce the Mission:</strong> Say with excitement: "We have two baby giraffes who need the longest neck to reach the highest leaves! We're going to see who can build the tallest, strongest neck tower."</p>
+
+<p><strong>The Build:</strong></p>
+<ul>
+  <li>Explain that the goal is to gently stack the cups/rings one on top of the other, directly on their base.</li>
+  <li>They must use only the materials in their own pile.</li>
+  <li><strong>Staff Prompt:</strong> "Remember, we are going to be slow and gentle with our hands to make sure our giraffe necks don't tumble!"</li>
+</ul>
+
+<p><strong>Turn-Taking & Friendly Competition:</strong></p>
+<ul>
+  <li>While it's a competitive goal, encourage taking turns to reduce rushing.</li>
+  <li><strong>Staff Prompt:</strong> "Okay, Child A stacks one. Now, Child B stacks one. Great teamwork!"</li>
+</ul>
+
+<p><strong>Counting & Goal:</strong></p>
+<ul>
+  <li>After about 10 minutes or when one tower falls, count the segments together.</li>
+  <li><strong>Staff Action:</strong> Gently touch each cup as you count it aloud.</li>
+  <li>The winner is the one who had the most segments stacked before their tower wobbled!</li>
+</ul>
+
+<h4>🧑‍⚕️ Hospital Staff Prompts & Gestures</h4>
+<table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+  <tr style="background-color: #f3f4f6;">
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Area</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Prompt/Phrase</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Recommended Gesture</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Encouragement</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"You're building such a strong giraffe neck! Keep going!"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Thumbs-up. Gentle nod of approval.</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Gentle Instruction</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"Take your time. Slow and steady wins the race!"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Slow hand movements. Demonstrate gentle stacking.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Counting & Celebration</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"Wow! You stacked 12 segments! That's amazing!"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Count aloud while touching each cup. Clap gently or offer a high-five.</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Friendly Competition</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"Both of you did an amazing job! Great teamwork and effort!"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Include both children in praise. Celebrate effort, not just winning.</td>
+  </tr>
+</table>
+
+<h4>🖐️ Fine Motor & Bedrest Accommodations</h4>
+<ul>
+  <li>Use lightweight cups that are easy to grip and balance.</li>
+  <li>Allow children to use both hands if needed for stability.</li>
+  <li>If stacking is too difficult, children can hand cups to staff, who stacks for them (participation still counts).</li>
+  <li>Adjust the height/angle of the base if the child has limited reach.</li>
+  <li>Use a soft pillow or foam pad under the base for extra cushioning and stability.</li>
+  <li>Take breaks if the child tires easily; keep the game to 10-15 minutes.</li>
+</ul>
+
+<h4>🌍 Adaptations for Different Settings</h4>
+<ul>
+  <li><strong>Single Child:</strong> Child can play against their own previous record. "Can you beat your last tower of 10 cups?"</li>
+  <li><strong>Very Limited Mobility:</strong> Staff can stack cups based on the child's verbal instructions: "Put one more on top. Now another one."</li>
+  <li><strong>Three or More Children:</strong> Create team competition or rotate turns so everyone gets a chance.</li>
+  <li><strong>Alternative Bases:</strong> Use a water bottle, toilet paper roll, or foam tube as the base instead of a flat square.</li>
+</ul>
+
+<h4>🎯 Key Benefits</h4>
+<p>This activity promotes hand-eye coordination, gentle fine motor practice, friendly competition, and engagement for children on bedrest. It's low-pressure and can be adjusted for any ability level.</p>
+</div>`,
+        },
+        {
+          id: 9,
+          test: "Alphabet Sequencing",
+          passed: true,
+          satisfaction: true,
+          result: "successful implementation",
+          image: "",
+          content: `<div style="font-family: Arial, sans-serif; color: #333;">
+<h3 style="margin-top: 0;">🎮 Pixel Pals Mission Match 💎</h3>
+<p><strong>A Visual Matching & Scavenger Hunt Activity for Children (Ages 5-12)</strong></p>
+
+<h4>🎯 Activity Goal</h4>
+<p>To engage children in a low-pressure visual matching and scavenger hunt game with a video game theme. The activity promotes observation skills, fine motor coordination (picking up cards), and teamwork while remaining accessible to children with varying abilities.</p>
+
+<h4>🧑‍🤝‍🧑 Target Group</h4>
+<ul>
+  <li><strong>Ages:</strong> 5–12 years old</li>
+  <li><strong>Group Size:</strong> 2 children (can be adapted for 1 or small groups)</li>
+  <li><strong>Setting:</strong> Cafeteria table, lunch table, or activity table</li>
+  <li><strong>Mobility Level:</strong> Moderate; children can move around the table or remain seated</li>
+  <li><strong>Adaptations:</strong> Designed for visual learners and children who enjoy video game themes.</li>
+</ul>
+
+<h4>📋 Necessary Materials (Minimal & Table-Friendly)</h4>
+<table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+  <tr style="background-color: #f3f4f6;">
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Item</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Purpose</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Notes</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">10-12 Index Cards</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">To create the "Pixel Pal" cards</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">5-6 pairs of matching cards with simple drawings</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Markers or Colored Pencils</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">To draw video game icons</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Use bright, high-contrast colors</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">One 8.5x11 Sheet of Paper</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">The "Mission Log" or "Target List"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Draw 5-6 icons that match the Pixel Pal cards</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Small Box or Container</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">The "Loot Box"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Hold one set of matching cards</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Large Marker</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">To check off matches on the Mission Log</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">For visual celebration of progress</td>
+  </tr>
+</table>
+
+<h4>🕹️ Activity Instructions (For Staff/Facilitator)</h4>
+
+<p><strong>Preparation (5 minutes):</strong></p>
+
+<p><strong>Create the Icons:</strong> On the index cards, draw 5–6 pairs of simple, non-violent video game items. Keep the drawings simple and high-contrast.</p>
+<ul style="margin-left: 20px;">
+  <li>Examples: A large red mushroom (power-up), a shiny gold coin, a heart (extra life), a single blue gem, a warp pipe</li>
+</ul>
+
+<p><strong>Make the Mission Log:</strong> Draw the 5–6 icons on the 8.5x11 sheet. This is the "Target List."</p>
+
+<p><strong>Setup the Hunt:</strong></p>
+<ul>
+  <li>Place the Mission Log and Loot Box in front of the two children.</li>
+  <li>"Hide" one set of the matching cards (Pixel Pals) in easily visible, nearby locations on the table (e.g., under a napkin, next to a salt shaker, behind a cup).</li>
+  <li>Place the second set of the matching cards in the Loot Box.</li>
+</ul>
+
+<p><strong>Playtime (15–20 minutes):</strong></p>
+
+<p><strong>Introduce the Mission:</strong> Say with excitement: "Welcome, Explorers! We need to match the items on our Mission Log with the Pixel Pals we find hidden around the table. We need to find 5 matches to win the round!"</p>
+
+<p><strong>Step-by-Step Search:</strong></p>
+<ul>
+  <li><strong>Staff Action:</strong> Point clearly to the first item on the Mission Log (e.g., the Red Mushroom).</li>
+  <li><strong>Child Action:</strong> Ask the children to look around the table to find the matching hidden Red Mushroom card.</li>
+  <li><strong>Staff Prompt:</strong> "Look! Find the red mushroom! Where is it hiding?"</li>
+</ul>
+
+<p><strong>Matching & Rewarding:</strong></p>
+<ul>
+  <li>When the hidden card is found, the children match it to the corresponding card in the Loot Box.</li>
+  <li><strong>Staff Action:</strong> Once matched, use a large marker to check off the icon on the Mission Log.</li>
+  <li><strong>Staff Prompt:</strong> "Awesome! Match found! Now, check it off the list. One down!"</li>
+</ul>
+
+<p><strong>Completion:</strong> The game continues until all 5-6 matches are found and checked off. Celebrate completing the "Level."</p>
+
+<h4>🧑‍⚕️ Hospital Staff Prompts & Gestures</h4>
+<table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+  <tr style="background-color: #f3f4f6;">
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Area</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Prompt/Phrase</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Recommended Gesture</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Observation & Search</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"Look around the table. Can you spot the red mushroom? It's hiding somewhere nearby!"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Point to different areas of the table. Use sweeping hand motions to encourage looking around.</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Encouragement</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"Great searching! You're doing amazing! Keep looking!"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Thumbs-up. Warm smile. Lean in with genuine interest.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Celebration of Match</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"YES! You found it! Perfect match! Let's check it off!"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Clap hands. Mark the checkbox with a big, celebratory flourish. High-five (if appropriate).</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Progress Acknowledgment</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"Look at all the matches we've found! Only 2 more to go!"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Point to the checkmarks on the Mission Log. Show visual progress.</td>
+  </tr>
+</table>
+
+<h4>👀 Visual & Observation Accommodations</h4>
+<ul>
+  <li>Use bright, high-contrast colors for all cards and drawings.</li>
+  <li>Make the icons large and easy to distinguish.</li>
+  <li>Keep the "hidden" cards in visually obvious locations (not truly hidden); this is a search activity, not a hard puzzle.</li>
+  <li>For children with low vision, allow them to use a magnifying glass or move closer to the cards.</li>
+  <li>Limit the search area to a small, defined space if the child has difficulty with larger spaces.</li>
+  <li>Allow staff to describe what they're looking for if the child has difficulty identifying the icon.</li>
+</ul>
+
+<h4>🌍 Adaptations for Different Settings</h4>
+<ul>
+  <li><strong>Single Child:</strong> Child can play solo and try to find all matches as fast as possible. Time them and create a personal record.</li>
+  <li><strong>Small Group (3-4):</strong> Children take turns finding one card each, then move to the next icon. This keeps everyone engaged.</li>
+  <li><strong>Bedside/Limited Mobility:</strong> Staff brings the "hidden" cards one at a time to the child's bedside. Child matches them to the Loot Box cards and Mission Log.</li>
+  <li><strong>Non-Visual Theme:</strong> Instead of video game icons, use other beloved characters or themes (animals, superheroes, etc.).</li>
+</ul>
+
+<h4>🎯 Key Benefits</h4>
+<p>This activity promotes visual discrimination, observation skills, fine motor practice (picking up cards), teamwork, and celebrates the achievement of completing a "level"—all with an engaging video game theme that appeals to children.</p>
+</div>`,
+        },
+        {
+          id: 10,
+          test: "Number Pattern Recognition",
+          passed: true,
+          satisfaction: false,
+          result:
+            "Functional but does not meet team quality validation standards",
+          image: "",
+          content: `<div style="font-family: Arial, sans-serif; color: #333;">
+<h3 style="margin-top: 0;">🗺️ Fortnite "Loot Map" Memory Match 💎</h3>
+<p><strong>A Strategy and Memory Game for Kids (Ages 8-9)</strong></p>
+
+<h4>🎯 Activity Goal</h4>
+<p>To engage children in a fun, strategic memory game inspired by Fortnite's map and "loot," encouraging gentle fine motor skills, focus, and teamwork (or friendly competition).</p>
+
+<h4>🧑‍🤝‍🧑 Target Group</h4>
+<ul>
+  <li><strong>Ages:</strong> 8–9 years old</li>
+  <li><strong>Group Size:</strong> 2 children (can be adapted for individual play or up to 3)</li>
+  <li><strong>Adaptations:</strong> Designed to accommodate children with arthritis, focusing on minimal hand strain.</li>
+</ul>
+
+<h4>📋 Necessary Materials (Minimal & Table-Friendly)</h4>
+<table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+  <tr style="background-color: #f3f4f6;">
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Item</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Purpose</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Notes</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">12-16 Small Paper Squares</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">The "Map Tiles" or "Loot Cards"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">About 2x2 inches each. Need enough for 6-8 pairs.</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Markers, Crayons, or Colored Pencils</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">To draw Fortnite-themed "Loot Icons"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Focus on easy-grip options if available.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">A Clean, Flat Table Surface</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">The "Battle Royale Map" playing area</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Any table works great</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Optional: Small, Flat Counters</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">To mark "discovered" loot or "safe zones"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">E.g., poker chips, bottle caps</td>
+  </tr>
+</table>
+
+<h4>🕹️ Activity Instructions (For Staff/Facilitator)</h4>
+<p><strong>Preparation (5 minutes):</strong></p>
+<ul>
+  <li><strong>Create Loot Cards:</strong> Guide the children to draw pairs of simple, non-violent Fortnite-themed "loot" icons on paper squares. Examples: shield potion, medkit, llama, treasure chest, bush, supply drop, v-bucks.</li>
+  <li><strong>Shuffle & Lay Out:</strong> Once 6-8 pairs are drawn, shuffle them. Lay them face down in a grid on the table.</li>
+</ul>
+
+<p><strong>Playtime (10–15 minutes):</strong></p>
+<ul>
+  <li><strong>Introduce the Mission:</strong> "Welcome, Battle Royale Explorers! The storm is closing in, and we need to find valuable loot hidden across the map. Let's work together to find all the matching items!"</li>
+  <li><strong>Taking Turns:</strong> Player 1 gently flips over two cards to reveal the "loot."</li>
+  <li><strong>Matching:</strong> If a match, they get to keep the pair. If not, flip them back face down.</li>
+  <li><strong>Game End:</strong> The game ends when all pairs have been found. The player with the most pairs wins!</li>
+</ul>
+
+<h4>🖐️ Adaptations for Arthritis / Joint Pain</h4>
+<table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+  <tr style="background-color: #f3f4f6;">
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Feature</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Adaptation/Action</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Staff Prompt</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Card Manipulation</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Use slightly larger, thicker cards. Encourage whole hand or two fingers (index & middle) to lift cards, not pinching.</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"Try lifting the card with the flat of your fingers, like this."</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Drawing/Creating</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Provide chunky markers or adaptive grips. Allow pre-drawn cards or let child direct you on what to draw.</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"What's your favorite Fortnite item we can draw today?"</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Pacing</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Allow for slower turns and breaks. No timed rounds.</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"Take your time, there's no hurry. What's your strategy?"</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Alternative Actions</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Players can use a pointer stick to tap cards they want revealed, and staff flips them.</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Offer a pointer and demonstrate how to tap without pressing hard.</td>
+  </tr>
+</table>
+
+<h4>🧑‍⚕️ Hospital Staff Prompts & Gestures</h4>
+<table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+  <tr style="background-color: #f3f4f6;">
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Area</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Prompt/Phrase</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Recommended Gesture</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Encouragement</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"Awesome job remembering that! You're a true Battle Royale strategist!"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Give a thumbs-up. Make eye contact and smile.</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Strategy Focus</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"Which part of the map should we search next? Do you remember where that healing potion was?"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Point to different areas of the grid. Lean in conspiratorially.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Gentle Play</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"Remember to be gentle with our map cards. Let's make sure our hands stay comfortable."</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Gently demonstrate lifting a card with a flat hand or two fingers.</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Teamwork</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"Should we tell our teammate where the last V-bucks were? Teamwork makes the dream work!"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Encourage high-fives (if comfortable) for good memory finds.</td>
+  </tr>
+</table>
+
+<h4>🏡 Adaptations for Different Settings</h4>
+<ul>
+  <li><strong>Individual Play:</strong> The child can play against themselves, trying to clear the "map" in the fewest turns.</li>
+  <li><strong>Larger Group:</strong> If playing with 3 children, they can play as a team or in a 3-player competitive format.</li>
+  <li><strong>Limited Table Space:</strong> A large clipboard or sturdy pillow on the lap can serve as the playing surface.</li>
+  <li><strong>"Loot Box" Theme:</strong> Use actual small, safe objects (plastic army men, blocks, cotton balls) hidden under paper cups that are flipped over.</li>
+</ul>
+</div>`,
+        },
+      ];
+
+      const hiddenObjectsTests = [
+        {
+          id: 1,
+          test: "Lost Toys in Bedroom",
+          passed: false,
+          satisfaction: false,
+          result: "quality issues detected",
+          image: "images/hiddenObjects_1.png",
+        },
+        {
+          id: 2,
+          test: "Hidden Animals in Forest",
+          passed: true,
+          satisfaction: true,
+          result: "excellent hidden object placement",
+          image: "images/hiddenObjects_2.png",
+        },
+        {
+          id: 3,
+          test: "Missing Items in Kitchen",
+          passed: true,
+          satisfaction: true,
+          result: "clear and engaging",
+          image: "images/hiddenObjects_3.png",
+        },
+        {
+          id: 4,
+          test: "Underwater Creatures Find",
+          passed: false,
+          satisfaction: true,
+          result:
+            "Technical issues present but tester approved quality standards",
+          image: "images/hiddenObjects_4.png",
+        },
+        {
+          id: 5,
+          test: "Hidden Objects Playground",
+          passed: true,
+          satisfaction: true,
+          result: "well designed",
+          image: "images/hiddenObjects_5.png",
+        },
+        {
+          id: 6,
+          test: "Lost School Supplies",
+          passed: false,
+          satisfaction: false,
+          result: "failed validation",
+          image: "images/hiddenObjects_6.png",
+        },
+        {
+          id: 7,
+          test: "Hidden Farm Animals",
+          passed: true,
+          satisfaction: true,
+          result: "great visual appeal",
+          image: "images/hiddenObjects_7.png",
+        },
+        {
+          id: 8,
+          test: "Missing Garden Items",
+          passed: true,
+          satisfaction: true,
+          result: "meets all standards",
+          image: "images/hiddenObjects_8.png",
+        },
+        {
+          id: 9,
+          test: "Hidden Space Objects",
+          passed: true,
+          satisfaction: true,
+          result: "creative implementation",
+          image: "images/hiddenObjects_9.png",
+        },
+        {
+          id: 10,
+          test: "Lost Castle Treasures",
+          passed: false,
+          satisfaction: false,
+          result: "below quality threshold",
+          image: "images/hiddenObjects_10.png",
+        },
+      ];
+
+      const coloringPageTests = [
+        {
+          id: 1,
+          test: "Brave Space Explorer",
+          passed: true,
+          satisfaction: true,
+          result:
+            "Generated personalized coloring page with space theme and cast accommodation",
+          image: "images/Coloring_1.png",
+        },
+        {
+          id: 2,
+          test: "Friendly Forest Animals",
+          passed: true,
+          satisfaction: true,
+          result:
+            "Created inclusive forest scene with various animal characters",
+          image: "images/Coloring_2.png",
+        },
+        {
+          id: 3,
+          test: "Fantasy Dragon Companion",
+          passed: true,
+          satisfaction: true,
+          result: "Generated detailed dragon page with medical accommodation",
+          image: "images/Coloring_3.png",
+        },
+        {
+          id: 4,
+          test: "Superhero Adventure",
+          passed: true,
+          satisfaction: true,
+          result: "Created wheelchair-inclusive superhero themed page",
+          image: "images/Coloring_4.png",
+        },
+        {
+          id: 5,
+          test: "Sweet Farm Friends",
+          passed: true,
+          satisfaction: true,
+          result:
+            "Generated simple farm animals suitable for very young children",
+          image: "images/Coloring_5.png",
+        },
+        {
+          id: 6,
+          test: "Happy Transportation",
+          passed: true,
+          satisfaction: true,
+          result: "Created connect-the-dots transportation themed page",
+          image: "images/Coloring_6.png",
+        },
+        {
+          id: 7,
+          test: "Space Adventure Color-by-Number",
+          passed: true,
+          satisfaction: true,
+          result:
+            "Generated color-by-number space activity with personalization",
+          image: "images/Coloring_7.png",
+        },
+        {
+          id: 8,
+          test: "Magical Creatures Trace-and-Color",
+          passed: true,
+          satisfaction: true,
+          result: "Created trace-and-color unicorn and fairy page",
+          image: "images/Coloring_8.png",
+        },
+        {
+          id: 9,
+          test: "Ocean Adventure",
+          passed: true,
+          satisfaction: true,
+          result: "Generated ocean scene with medical accommodation for tubes",
+          image: "images/Coloring_9.png",
+        },
+        {
+          id: 10,
+          test: "Fun Fruits",
+          passed: true,
+          satisfaction: true,
+          result:
+            "Created simple fruit sticker-style icons for very young children",
+          image: "images/Coloring_10.png",
+        },
+      ];
+
+      const wordSearchTests = [
+        {
+          id: 1,
+          test: "Friendly Animals 3-5",
+          passed: true,
+          satisfaction: true,
+          result: "Generated age-appropriate word search with large print",
+          image: "images/wordSearch_1.png",
+        },
+        {
+          id: 2,
+          test: "Space Exploration 12-14",
+          passed: true,
+          satisfaction: true,
+          result: "Created challenging word search with science vocabulary",
+          image: "images/wordSearch_2.png",
+        },
+        {
+          id: 3,
+          test: "Ocean Adventure 6-8",
+          passed: true,
+          satisfaction: true,
+          result: "Generated sensory-friendly ocean-themed puzzle",
+          image: "images/wordSearch_3.png",
+        },
+        {
+          id: 4,
+          test: "Music and Arts 15-18",
+          passed: true,
+          satisfaction: true,
+          result: "Created complex word search with cultural instruments",
+          image: "images/wordSearch_4.png",
+        },
+        {
+          id: 5,
+          test: "Dinosaurs 3-5",
+          passed: true,
+          satisfaction: true,
+          result: "Generated starter difficulty dinosaur themed puzzle",
+          image: "images/wordSearch_5.png",
+        },
+        {
+          id: 6,
+          test: "Sports and Games 9-11",
+          passed: true,
+          satisfaction: true,
+          result: "Created inclusive adaptive sports word search",
+          image: "images/wordSearch_6.png",
+        },
+        {
+          id: 7,
+          test: "Superheroes 6-8",
+          passed: true,
+          satisfaction: true,
+          result: "Generated diverse superhero themed word search",
+          image: "images/wordSearch_7.png",
+        },
+        {
+          id: 8,
+          test: "Nature and Seasons 12-14",
+          passed: true,
+          satisfaction: true,
+          result: "Created mindfulness-focused nature word search",
+          image: "images/wordSearch_8.png",
+        },
+        {
+          id: 9,
+          test: "Colors and Shapes 3-5",
+          passed: true,
+          satisfaction: true,
+          result: "Generated extra large print starter level puzzle",
+          image: "images/wordSearch_9.png",
+        },
+        {
+          id: 10,
+          test: "Future Careers 15-18",
+          passed: true,
+          satisfaction: true,
+          result: "Created inspiring careers word search with hope themes",
+          image: "images/wordSearch_10.png",
+        },
+      ];
+
+      const activityConfig = {
+        coloring: {
+          name: "Coloring Page",
+          color: "green",
+          gradient: "from-green-500 to-emerald-600",
+          tests: coloringPageTests,
+        },
+        wordSearch: {
+          name: "Word Search",
+          color: "purple",
+          gradient: "from-purple-500 to-indigo-600",
+          tests: wordSearchTests,
+        },
+        spotDifference: {
+          name: "Spot the Difference",
+          color: "orange",
+          gradient: "from-orange-500 to-red-600",
+          tests: spotTheDifferenceTests,
+        },
+        activityGame: {
+          name: "Activity Game",
+          color: "blue",
+          gradient: "from-blue-500 to-cyan-600",
+          tests: activityGameTests,
+        },
+        hiddenObjects: {
+          name: "Hidden Objects",
+          color: "pink",
+          gradient: "from-pink-500 to-rose-600",
+          tests: hiddenObjectsTests,
+        },
+      };
+
+      const colorMap = {
+        green: {
+          border: "border-green-500",
+          badge: "bg-green-100 text-green-800",
+          icon: "text-green-500",
+          tab: "bg-green-500",
+        },
+        purple: {
+          border: "border-purple-200",
+          badge: "bg-purple-100 text-purple-800",
+          icon: "text-purple-500",
+          tab: "bg-purple-500",
+        },
+        orange: {
+          border: "border-orange-200",
+          badge: "bg-orange-100 text-orange-800",
+          icon: "text-orange-500",
+          tab: "bg-orange-500",
+        },
+        blue: {
+          border: "border-blue-200",
+          badge: "bg-blue-100 text-blue-800",
+          icon: "text-blue-500",
+          tab: "bg-blue-500",
+        },
+        pink: {
+          border: "border-pink-200",
+          badge: "bg-pink-100 text-pink-800",
+          icon: "text-pink-500",
+          tab: "bg-pink-500",
+        },
+      };
+
+      function generatePieChart(passCount, failCount) {
+        const total = passCount + failCount;
+        if (total === 0) return "";
+
+        const passPercent = (passCount / total) * 100;
+        const radius = 70;
+        const cx = 90;
+        const cy = 90;
+
+        if (passCount === total) {
+          return `
+                    <svg width="180" height="180" viewBox="0 0 180 180" class="mb-6">
+                        <circle cx="90" cy="90" r="70" fill="#10b981" />
+                    </svg>
+                `;
+        }
+
+        if (passCount === 0) {
+          return `
+                    <svg width="180" height="180" viewBox="0 0 180 180" class="mb-6">
+                        <circle cx="90" cy="90" r="70" fill="#ef4444" />
+                    </svg>
+                `;
+        }
+
+        const passAngle = (passPercent / 100) * 360;
+        const startAngleDeg = -90;
+        const endAngleDeg = startAngleDeg + passAngle;
+
+        const startAngleRad = (startAngleDeg * Math.PI) / 180;
+        const endAngleRad = (endAngleDeg * Math.PI) / 180;
+
+        const x1 = cx + radius * Math.cos(startAngleRad);
+        const y1 = cy + radius * Math.sin(startAngleRad);
+        const x2 = cx + radius * Math.cos(endAngleRad);
+        const y2 = cy + radius * Math.sin(endAngleRad);
+
+        const largeArc = passAngle > 180 ? 1 : 0;
+        const passPath = `M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`;
+        const failLargeArc = 360 - passAngle > 180 ? 1 : 0;
+        const failPath = `M ${cx} ${cy} L ${x2} ${y2} A ${radius} ${radius} 0 ${failLargeArc} 1 ${x1} ${y1} Z`;
+
+        return `
+                <svg width="180" height="180" viewBox="0 0 180 180" class="mb-6">
+                    <path d="${passPath}" fill="#10b981" />
+                    <path d="${failPath}" fill="#ef4444" />
+                </svg>
+            `;
+      }
+
+      function toggleDropdown(testId) {
+        const key = `${activeTab}-${testId}`;
+        expandedDropdowns[key] = !expandedDropdowns[key];
+        render();
+      }
+
+      function render() {
+        const config = activityConfig[activeTab];
+        const currentTests = config.tests;
+        const passCount = currentTests.filter((t) => t.passed).length;
+        const failCount = currentTests.length - passCount;
+        const passRate = (passCount / currentTests.length) * 100;
+        const satisfactionCount = currentTests.filter(
+          (t) => t.satisfaction
+        ).length;
+        const satisfactionRate =
+          (satisfactionCount / currentTests.length) * 100;
+        const colors = colorMap[config.color];
+
+        const html = `
+                <div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-8">
+                    <div class="max-w-6xl mx-auto">
+                        <!-- Header -->
+                          <div class="mb-12 flex items-center gap-6">
+                              <img src="images/logo.png" alt="Logo" class="h-16 w-auto">
+                              <div>
+                                  <h1 class="text-4xl font-bold text-gray-900 mb-2">Playward Prompt Validation Report</h1>
+                              </div>
+                          </div>
+
+                        <!-- Tab Navigation -->
+                        <div class="tabs-container">
+                            <button onclick="switchTab('coloring')" class="px-6 py-3 rounded-lg font-semibold text-sm transition-all ${
+                              activeTab === "coloring"
+                                ? "bg-green-500 text-white shadow-lg"
+                                : "bg-white text-gray-700 border-2 border-gray-300"
+                            }">
+                                Coloring Page
+                            </button>
+                            <button onclick="switchTab('wordSearch')" class="px-6 py-3 rounded-lg font-semibold text-sm transition-all ${
+                              activeTab === "wordSearch"
+                                ? "bg-purple-500 text-white shadow-lg"
+                                : "bg-white text-gray-700 border-2 border-gray-300"
+                            }">
+                                Word Search
+                            </button>
+                            <button onclick="switchTab('spotDifference')" class="px-6 py-3 rounded-lg font-semibold text-sm transition-all ${
+                              activeTab === "spotDifference"
+                                ? "bg-orange-500 text-white shadow-lg"
+                                : "bg-white text-gray-700 border-2 border-gray-300"
+                            }">
+                                Spot the Difference
+                            </button>
+                            <button onclick="switchTab('activityGame')" class="px-6 py-3 rounded-lg font-semibold text-sm transition-all ${
+                              activeTab === "activityGame"
+                                ? "bg-blue-500 text-white shadow-lg"
+                                : "bg-white text-gray-700 border-2 border-gray-300"
+                            }">
+                                Activity Game
+                            </button>
+                            <button onclick="switchTab('hiddenObjects')" class="px-6 py-3 rounded-lg font-semibold text-sm transition-all ${
+                              activeTab === "hiddenObjects"
+                                ? "bg-pink-500 text-white shadow-lg"
+                                : "bg-white text-gray-700 border-2 border-gray-300"
+                            }">
+                                Hidden Objects
+                            </button>
+                        </div>
+
+                        <!-- Key Metrics -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+                            <div class="bg-white rounded-lg shadow-lg p-8 border-t-4 ${
+                              colors.border
+                            }">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="text-gray-600 text-sm font-semibold uppercase tracking-wide">Total Tests</p>
+                                        <p class="text-5xl font-bold text-gray-900 mt-2">${
+                                          currentTests.length
+                                        }</p>
+                                    </div>
+                                    <svg class="w-16 h-16 ${
+                                      colors.icon
+                                    }" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <div class="bg-white rounded-lg shadow-lg p-8 border-t-4 border-green-500">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <div class="flex items-center">
+                                            <p class="text-gray-600 text-sm font-semibold uppercase tracking-wide">Pass Rate</p>
+                                            <div class="tooltip-container">
+                                                <span class="tooltip-icon">?</span>
+                                                <span class="tooltip-text">The activity was successfully generated and met all technical requirements. A pass means the prompt execution was completed without errors.</span>
+                                            </div>
+                                        </div>
+                                        <p class="text-5xl font-bold text-green-600 mt-2">${passRate.toFixed(
+                                          0
+                                        )}%</p>
+                                    </div>
+                                    <div class="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
+                                        <span class="text-2xl font-bold text-green-600">✓</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="bg-white rounded-lg shadow-lg p-8 border-t-4 border-blue-500">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <div class="flex items-center">
+                                            <p class="text-gray-600 text-sm font-semibold uppercase tracking-wide">Quality Validation</p>
+                                            <div class="tooltip-container">
+                                                <span class="tooltip-icon">?</span>
+                                                <span class="tooltip-text">Whether the generated activity met quality standards and clinical expectations. Validated by the testing team member. An activity can pass technically but not validate if the output quality, age-appropriateness, or clinical relevance don't meet standards.</span>
+                                            </div>
+                                        </div>
+                                        <p class="text-5xl font-bold text-blue-600 mt-2">${satisfactionRate.toFixed(
+                                          0
+                                        )}%</p>
+                                    </div>
+                                    <div class="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center">
+                                        <span class="text-2xl font-bold text-blue-600">✓</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Charts Section -->
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+                            <!-- Pie Chart -->
+                            <div class="bg-white rounded-lg shadow-lg p-8">
+                                <h2 class="text-xl font-bold text-gray-900 mb-6">Test Results Distribution</h2>
+                                <div class="flex flex-col items-center">
+                                    ${generatePieChart(passCount, failCount)}
+                                    <div class="flex gap-8">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-4 h-4 rounded bg-green-500"></div>
+                                            <span class="font-semibold">Passed: ${passCount}</span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-4 h-4 rounded bg-red-500"></div>
+                                            <span class="font-semibold">Failed: ${failCount}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Bar Chart -->
+                            <div class="bg-white rounded-lg shadow-lg p-8">
+                                <h2 class="text-xl font-bold text-gray-900 mb-6">Quality Metrics</h2>
+                                <div class="bar-chart-container">
+                                    <div class="bar">
+                                        <div class="bar-fill" style="height: ${passRate}px;"></div>
+                                        <span class="bar-label">${passRate.toFixed(
+                                          0
+                                        )}%</span>
+                                        <span class="text-xs text-gray-600">Pass Rate</span>
+                                    </div>
+                                    <div class="bar">
+                                        <div class="bar-fill" style="height: ${satisfactionRate}px; background: #06b6d4;"></div>
+                                        <span class="bar-label">${satisfactionRate.toFixed(
+                                          0
+                                        )}%</span>
+                                        <span class="text-xs text-gray-600">Quality Validation</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Client Satisfaction Stats Section -->
+                        <div class="bg-white rounded-lg shadow-lg p-8 mb-12">
+                            <h2 class="text-xl font-bold text-gray-900 mb-6">Client Feedback Summary</h2>
+                            <div id="clientStatsContainer" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+                                <p style="color: #6b7280; text-align: center; grid-column: 1/-1;">No feedback received yet. Share this dashboard with clients to collect ratings!</p>
+                            </div>
+                        </div>
+
+                        <!-- Test Details -->
+                        <div class="bg-white rounded-lg shadow-lg p-8 mb-12">
+                            <h2 class="text-xl font-bold text-gray-900 mb-6">Individual Test Results</h2>
+                            <div class="space-y-3">
+                                ${currentTests
+                                  .map((test) => {
+                                    const dropdownKey = `${activeTab}-${test.id}`;
+                                    const isExpanded =
+                                      expandedDropdowns[dropdownKey] || false;
+                                    return `
+                                        <div class="bg-gradient-to-r ${
+                                          activeTab === "coloring"
+                                            ? "from-green-50 to-blue-50"
+                                            : activeTab === "wordSearch"
+                                            ? "from-purple-50 to-blue-50"
+                                            : activeTab === "spotDifference"
+                                            ? "from-orange-50 to-red-50"
+                                            : activeTab === "activityGame"
+                                            ? "from-blue-50 to-cyan-50"
+                                            : "from-pink-50 to-rose-50"
+                                        } rounded-lg border ${colors.border}">
+                                            <button onclick="toggleDropdown(${
+                                              test.id
+                                            })" class="dropdown-button p-4 flex items-center justify-between w-full hover:opacity-80">
+                                                <div class="flex items-center gap-3">
+                                                    <svg class="w-6 h-6 ${
+                                                      colors.icon
+                                                    } flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                                    </svg>
+                                                    <div class="text-left">
+                                                        <p class="font-semibold text-gray-900">${
+                                                          test.test
+                                                        }</p>
+                                                        <div class="flex gap-2 mt-1">
+                                                            <span class="text-xs font-semibold px-3 py-1 rounded-full ${
+                                                              test.passed
+                                                                ? colors.badge
+                                                                : "bg-red-100 text-red-800"
+                                                            }">
+                                                                ${
+                                                                  test.passed
+                                                                    ? "✓ Passed"
+                                                                    : "✗ Failed"
+                                                                }
+                                                            </span>
+                                                            <span class="text-xs font-semibold px-3 py-1 rounded-full ${
+                                                              test.satisfaction
+                                                                ? "bg-blue-100 text-blue-800"
+                                                                : "bg-gray-100 text-gray-800"
+                                                            }">
+                                                                ${
+                                                                  test.satisfaction
+                                                                    ? "✓ Meets Standards"
+                                                                    : "✗ Below Standards"
+                                                                }
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <svg class="w-5 h-5 text-gray-600 transition-transform ${
+                                                  isExpanded ? "rotate-180" : ""
+                                                }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                                </svg>
+                                            </button>
+                                            <div class="dropdown-content ${
+                                              isExpanded ? "open" : ""
+                                            } border-t ${colors.border}">
+                                                <div class="p-4 bg-white text-sm text-gray-700" style="max-height: 500px; overflow-y: auto;">
+                                                    ${
+                                                      test.image
+                                                        ? `<img src="${test.image}" alt="${test.test}" class="result-image" onerror="this.parentElement.innerHTML += '<div class=\\'image-placeholder\\'>Image not found: ${test.image}<br/>Add the image to the images folder with this filename</div>';" />`
+                                                        : ""
+                                                    }
+                                                    ${
+                                                      test.content
+                                                        ? `<div style="font-size: 13px; line-height: 1.6;">${test.content}</div>`
+                                                        : `<p class="font-semibold text-gray-900 mb-2">Result Details:</p><p class="leading-relaxed">${test.result}</p>`
+                                                    }
+                                                    <div style="margin-top: 20px; border-top: 1px solid #e5e7eb; padding-top: 15px;">
+                                                        <button 
+                                                          onclick="openFeedbackModal('${
+                                                            test.test
+                                                          }', '${activeTab}')" 
+                                                          style="padding: 8px 16px; background-color: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">
+                                                          💬 Provide Feedback
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                                  })
+                                  .join("")}
+                            </div>
+                        </div>
+
+                        <!-- Summary Statement -->
+                        <div class="bg-gradient-to-r ${
+                          config.gradient
+                        } rounded-lg shadow-lg p-8 text-white">
+                            <h3 class="text-2xl font-bold mb-3">Validation Report ✓</h3>
+                            <p class="text-lg leading-relaxed">
+                                The ${
+                                  config.name
+                                } Activity Generator has successfully completed validation testing across ${
+          currentTests.length
+        } scenarios. Results show a ${passRate.toFixed(
+          0
+        )}% pass rate and ${satisfactionRate.toFixed(
+          0
+        )}% quality validation, demonstrating the system's effectiveness in creating therapeutic activities for pediatric patients.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+        app.innerHTML = html;
+
+        // Display client satisfaction stats
+        setTimeout(() => {
+          displayClientSatisfactionStats();
+        }, 100);
+      }
+
+      function switchTab(tab) {
+        activeTab = tab;
+        expandedDropdowns = {};
+        render();
+      }
+
+      render();
+
+      loadClientSatisfactionStats();
     </script>
+
+    <!-- Removed separate Firebase initialization script - now handled inline -->
   </body>
 </html>
