@@ -175,8 +175,9 @@
       }
     </style>
     <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebaseapp/11.0.0/firebase-app.js" defer></script>
-    <script src="https://www.gstatic.com/firebaseapp/11.0.0/firebase-firestore.js" defer></script>
+    <!-- Fixed Firebase CDN URLs and removed defer to load synchronously -->
+    <script src="https://www.gstatic.com/firebasejs/11.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore-compat.js"></script>
   </head>
   <body>
     <div id="root"></div>
@@ -185,10 +186,12 @@
     <div id="feedbackModal" class="modal">
       <div class="modal-content">
         <span class="close-modal" onclick="closeFeedbackModal()">&times;</span>
-        <h2 style="margin-top: 0; color: #1f2937;">How satisfied are you with this activity?</h2>
-        
-        <p style="color: #6b7280; font-size: 14px;" id="activityNameDisplay"></p>
-        
+        <h2 style="margin-top: 0; color: #1f2937">
+          How satisfied are you with this activity?
+        </h2>
+
+        <p style="color: #6b7280; font-size: 14px" id="activityNameDisplay"></p>
+
         <!-- Star Rating -->
         <div class="star-rating" id="starRating">
           <span class="star" onclick="setRating(1)" data-rating="1">★</span>
@@ -197,49 +200,122 @@
           <span class="star" onclick="setRating(4)" data-rating="4">★</span>
           <span class="star" onclick="setRating(5)" data-rating="5">★</span>
         </div>
-        
+
         <!-- Rating Labels -->
-        <p style="color: #6b7280; font-size: 12px; margin-top: -10px;" id="ratingLabel">Click to rate</p>
-        
+        <p
+          style="color: #6b7280; font-size: 12px; margin-top: -10px"
+          id="ratingLabel"
+        >
+          Click to rate
+        </p>
+
         <!-- Optional Comment -->
-        <div style="margin: 20px 0;">
-          <label for="feedbackComment" style="display: block; font-weight: 600; color: #1f2937; margin-bottom: 8px;">
+        <div style="margin: 20px 0">
+          <label
+            for="feedbackComment"
+            style="
+              display: block;
+              font-weight: 600;
+              color: #1f2937;
+              margin-bottom: 8px;
+            "
+          >
             Optional: Add a comment
           </label>
-          <textarea 
-            id="feedbackComment" 
-            placeholder="Tell us what you think..." 
-            style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-family: Arial; font-size: 14px; resize: vertical; min-height: 80px; box-sizing: border-box;">
+          <textarea
+            id="feedbackComment"
+            placeholder="Tell us what you think..."
+            style="
+              width: 100%;
+              padding: 10px;
+              border: 1px solid #d1d5db;
+              border-radius: 6px;
+              font-family: Arial;
+              font-size: 14px;
+              resize: vertical;
+              min-height: 80px;
+              box-sizing: border-box;
+            "
+          >
           </textarea>
         </div>
-        
+
         <!-- Email (Optional) -->
-        <div style="margin: 20px 0;">
-          <label for="feedbackEmail" style="display: block; font-weight: 600; color: #1f2937; margin-bottom: 8px;">
+        <div style="margin: 20px 0">
+          <label
+            for="feedbackEmail"
+            style="
+              display: block;
+              font-weight: 600;
+              color: #1f2937;
+              margin-bottom: 8px;
+            "
+          >
             Email (optional)
           </label>
-          <input 
-            type="email" 
-            id="feedbackEmail" 
-            placeholder="your@email.com" 
-            style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; box-sizing: border-box;">
+          <input
+            type="email"
+            id="feedbackEmail"
+            placeholder="your@email.com"
+            style="
+              width: 100%;
+              padding: 10px;
+              border: 1px solid #d1d5db;
+              border-radius: 6px;
+              font-size: 14px;
+              box-sizing: border-box;
+            "
+          />
         </div>
-        
+
         <!-- Buttons -->
-        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 25px;">
-          <button 
-            onclick="closeFeedbackModal()" 
-            style="padding: 10px 20px; background-color: #e5e7eb; color: #1f2937; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+        <div
+          style="
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 25px;
+          "
+        >
+          <button
+            onclick="closeFeedbackModal()"
+            style="
+              padding: 10px 20px;
+              background-color: #e5e7eb;
+              color: #1f2937;
+              border: none;
+              border-radius: 6px;
+              cursor: pointer;
+              font-weight: 600;
+            "
+          >
             Cancel
           </button>
-          <button 
-            onclick="submitFeedback()" 
-            style="padding: 10px 20px; background-color: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+          <button
+            onclick="submitFeedback()"
+            style="
+              padding: 10px 20px;
+              background-color: #3b82f6;
+              color: white;
+              border: none;
+              border-radius: 6px;
+              cursor: pointer;
+              font-weight: 600;
+            "
+          >
             Submit Feedback
           </button>
         </div>
-        
-        <p id="feedbackStatus" style="color: #10b981; text-align: center; margin-top: 15px; font-size: 14px;"></p>
+
+        <p
+          id="feedbackStatus"
+          style="
+            color: #10b981;
+            text-align: center;
+            margin-top: 15px;
+            font-size: 14px;
+          "
+        ></p>
       </div>
     </div>
 
@@ -254,18 +330,35 @@
         storageBucket: "prompt-results.firebasestorage.app",
         messagingSenderId: "119391589830",
         appId: "1:119391589830:web:47d8c1b7307e4002eacec7",
-        measurementId: "G-D35XB78NJN"
+        measurementId: "G-D35XB78NJN",
       };
 
       // Initialize Firebase
       let db = null;
       let firebaseReady = false;
 
+      try {
+        if (typeof firebase !== "undefined") {
+          firebase.initializeApp(firebaseConfig);
+          db = firebase.firestore();
+          firebaseReady = true;
+          console.log("✓ Firebase initialized successfully");
+          console.log("Firebase ready:", firebaseReady);
+          console.log("DB:", db);
+        } else {
+          console.error("Firebase SDK not loaded");
+        }
+      } catch (error) {
+        console.error("Error initializing Firebase:", error);
+        firebaseReady = false;
+      }
+
       // ============================================
       // FEEDBACK MODAL VARIABLES
       // ============================================
       let currentActivityName = "";
       let currentActivityType = "";
+      let currentTestId = null;
       let currentRating = 0;
       let clientSatisfactionStats = {};
 
@@ -274,19 +367,22 @@
       // ============================================
 
       // Open feedback modal
-      function openFeedbackModal(activityName, activityType) {
+      function openFeedbackModal(activityName, activityType, testId) {
         currentActivityName = activityName;
         currentActivityType = activityType;
+        currentTestId = testId;
         currentRating = 0;
-        
+
         document.getElementById("feedbackModal").classList.add("open");
-        document.getElementById("activityNameDisplay").textContent = `Activity: ${activityName}`;
+        document.getElementById(
+          "activityNameDisplay"
+        ).textContent = `Activity: ${activityName}`;
         document.getElementById("feedbackComment").value = "";
         document.getElementById("feedbackEmail").value = "";
         document.getElementById("feedbackStatus").textContent = "";
-        
+
         // Reset stars
-        document.querySelectorAll(".star").forEach(star => {
+        document.querySelectorAll(".star").forEach((star) => {
           star.classList.remove("active");
         });
         document.getElementById("ratingLabel").textContent = "Click to rate";
@@ -301,7 +397,7 @@
       // Set rating when user clicks star
       function setRating(rating) {
         currentRating = rating;
-        
+
         // Update star display
         document.querySelectorAll(".star").forEach((star, index) => {
           if (index < rating) {
@@ -310,7 +406,7 @@
             star.classList.remove("active");
           }
         });
-        
+
         // Update label
         const labels = ["", "Poor", "Fair", "Good", "Very Good", "Excellent"];
         document.getElementById("ratingLabel").textContent = labels[rating];
@@ -318,9 +414,19 @@
 
       // Submit feedback to Firebase
       function submitFeedback() {
+        console.log(
+          "Submit feedback called. Firebase ready:",
+          firebaseReady,
+          "DB:",
+          db
+        );
+
         if (!firebaseReady || !db) {
-          alert("Firebase is still loading. Please wait a moment and try again.");
+          alert(
+            "Firebase is still loading. Please wait a moment and try again."
+          );
           console.log("Firebase ready:", firebaseReady, "DB:", db);
+          console.error("Firebase not ready. Ready:", firebaseReady, "DB:", db);
           return;
         }
 
@@ -328,200 +434,193 @@
           alert("Please select a rating");
           return;
         }
-        
+
         const comment = document.getElementById("feedbackComment").value;
-        const email = document.getElementById("feedbackEmail").value || "Anonymous";
-        const testIdentifier = `${currentActivityType}-${currentActivityName}`;
-        
-        // Check for duplicate feedback
-        checkForDuplicateFeedback(testIdentifier, email).then(hasFeedback => {
-          if (hasFeedback) {
-            alert(`You've already submitted feedback for "${currentActivityName}". Thank you for your input!`);
-            closeFeedbackModal();
-            return;
-          }
-          
-          // Show loading state
-          document.getElementById("feedbackStatus").textContent = "Submitting...";
-          document.getElementById("feedbackStatus").style.color = "#6b7280";
-          
-          // Add feedback to Firestore
-          db.collection("feedback").add({
+        const email = document.getElementById("feedbackEmail").value;
+
+        // Show loading state
+        document.getElementById("feedbackStatus").textContent = "Submitting...";
+        document.getElementById("feedbackStatus").style.color = "#6b7280";
+
+        console.log("Attempting to add document to Firestore...");
+
+        // Add feedback to Firestore
+        db.collection("feedback")
+          .add({
             activityName: currentActivityName,
             activityType: currentActivityType,
-            testIdentifier: testIdentifier,
+            testId: currentTestId || null,
             rating: currentRating,
             comment: comment || "No comment",
-            email: email,
+            email: email || "Anonymous",
             timestamp: new Date(),
-            userAgent: navigator.userAgent.substring(0, 100)
+            userAgent: navigator.userAgent.substring(0, 100),
           })
           .then(() => {
-            document.getElementById("feedbackStatus").textContent = "✓ Thank you! Feedback submitted";
+            // Added logging for successful submission
+            console.log("Feedback submitted successfully!");
+            document.getElementById("feedbackStatus").textContent =
+              "✓ Thank you! Feedback submitted";
             document.getElementById("feedbackStatus").style.color = "#10b981";
-            
+
             // Close modal after 2 seconds
             setTimeout(() => {
               closeFeedbackModal();
               loadClientSatisfactionStats();
               displayClientSatisfactionStats();
-              refreshTestFeedbacks();
+              // Reload test feedback displays
+              if (currentTestId) {
+                loadTestFeedback(currentTestId);
+              }
             }, 2000);
           })
           .catch((error) => {
             console.error("Error submitting feedback:", error);
-            document.getElementById("feedbackStatus").textContent = "Error submitting feedback. Please try again.";
+            document.getElementById("feedbackStatus").textContent =
+              "Error submitting feedback. Please try again.";
             document.getElementById("feedbackStatus").style.color = "#ef4444";
           });
+      }
+
+      // Load and display feedback for a specific test
+      function loadTestFeedback(testId) {
+        if (!firebaseReady || !db) {
+          console.log("Cannot load test feedback - Firebase not ready");
+          return;
+        }
+
+        const feedbackContainer = document.getElementById(`feedback-section-${testId}`);
+        const feedbackBtn = document.getElementById(`feedback-btn-${testId}`);
+        
+        if (!feedbackContainer || !feedbackBtn) return;
+
+        db.collection("feedback")
+          .where("testId", "==", testId)
+          .get()
+          .then((snapshot) => {
+            if (snapshot.empty) {
+              feedbackContainer.innerHTML = "";
+              feedbackBtn.disabled = false;
+              feedbackBtn.style.opacity = "1";
+              feedbackBtn.style.cursor = "pointer";
+              return;
+            }
+
+            let feedbackHTML = '<div style="margin-bottom: 12px;"><p style="font-size: 12px; font-weight: 600; color: #6b7280; margin-bottom: 8px;">📋 Feedback received:</p>';
+            
+            snapshot.forEach((doc) => {
+              const data = doc.data();
+              const stars = "⭐".repeat(data.rating);
+              const comment = data.comment || "No comment provided";
+              const email = data.email || "Anonymous";
+              
+              feedbackHTML += `
+                <div style="background-color: #f9fafb; border-left: 4px solid #3b82f6; padding: 10px; margin-bottom: 8px; border-radius: 4px; font-size: 12px;">
+                  <div style="font-weight: 600; color: #1f2937; margin-bottom: 4px;">${stars} (${data.rating}/5)</div>
+                  <div style="color: #374151; margin-bottom: 4px; line-height: 1.4;">"${comment}"</div>
+                  <div style="color: #9ca3af; font-size: 11px;">— ${email}</div>
+                </div>
+              `;
+            });
+
+            feedbackHTML += '</div>';
+            feedbackContainer.innerHTML = feedbackHTML;
+            
+            // Disable the feedback button if feedback already exists
+            feedbackBtn.disabled = true;
+            feedbackBtn.style.opacity = "0.5";
+            feedbackBtn.style.cursor = "not-allowed";
+            feedbackBtn.style.backgroundColor = "#9ca3af";
+            feedbackBtn.title = "Feedback already submitted for this test";
+          })
+          .catch((error) => {
+            console.error("Error loading test feedback:", error);
+          });
+      }
+
+      // Load all test feedbacks when tests are displayed
+      function loadAllTestFeedbacks() {
+        if (!firebaseReady || !db) {
+          return;
+        }
+
+        const tests = data[activeTab] || [];
+        tests.forEach((test) => {
+          setTimeout(() => {
+            loadTestFeedback(test.id);
+          }, 100);
         });
       }
-
-      // Check if user already submitted feedback for this test
-      async function checkForDuplicateFeedback(testIdentifier, email) {
-        if (!firebaseReady || !db) return false;
-        
-        try {
-          const snapshot = await db.collection("feedback")
-            .where("testIdentifier", "==", testIdentifier)
-            .where("email", "==", email)
-            .get();
-          
-          return !snapshot.empty;
-        } catch (error) {
-          console.error("Error checking for duplicate feedback:", error);
-          return false;
-        }
-      }
-
-      // Store individual feedbacks by test
-      let testFeedbacks = {};
-
-      // Load feedbacks for individual tests
-      async function loadTestFeedbacks() {
+      function loadClientSatisfactionStats() {
         if (!firebaseReady || !db) {
-          console.log("Firebase not ready yet - skipping test feedbacks load");
+          console.log("Cannot load stats - Firebase not ready");
           return;
         }
 
-        try {
-          const feedbackSnapshot = await db.collection("feedback").get();
-          
-          testFeedbacks = {};
-          
-          feedbackSnapshot.forEach(doc => {
-            const data = doc.data();
-            const testIdentifier = data.testIdentifier || `${data.activityType}-${data.activityName}`;
-            
-            if (!testFeedbacks[testIdentifier]) {
-              testFeedbacks[testIdentifier] = [];
-            }
-            
-            testFeedbacks[testIdentifier].push({
-              rating: data.rating,
-              comment: data.comment,
-              email: data.email,
-              timestamp: data.timestamp
+        console.log("Loading client satisfaction stats...");
+
+        db.collection("feedback")
+          .get()
+          .then((snapshot) => {
+            clientSatisfactionStats = {};
+            snapshot.forEach((doc) => {
+              const data = doc.data();
+              const type = data.activityType;
+
+              if (!clientSatisfactionStats[type]) {
+                clientSatisfactionStats[type] = {
+                  totalRatings: 0,
+                  sumRatings: 0,
+                  count: 0,
+                };
+              }
+
+              clientSatisfactionStats[type].totalRatings += data.rating;
+              clientSatisfactionStats[type].sumRatings += data.rating;
+              clientSatisfactionStats[type].count += 1;
             });
+
+            console.log("Stats loaded:", clientSatisfactionStats);
+          })
+          .catch((error) => {
+            console.error("Error loading stats:", error);
           });
-          
-          console.log("Test Feedbacks:", testFeedbacks);
-        } catch (error) {
-          console.error("Error loading test feedbacks:", error);
-        }
-      }
-
-      // Refresh feedbacks after new submission
-      function refreshTestFeedbacks() {
-        loadTestFeedbacks();
-        // Refresh the current view
-        render();
-      }
-
-      // ============================================
-      // LOAD CLIENT SATISFACTION STATS
-      // ============================================
-
-      async function loadClientSatisfactionStats() {
-        if (!firebaseReady || !db) {
-          console.log("Firebase not ready yet - skipping stats load");
-          return;
-        }
-
-        try {
-          const feedbackSnapshot = await db.collection("feedback").get();
-          
-          clientSatisfactionStats = {};
-          
-          feedbackSnapshot.forEach(doc => {
-            const data = doc.data();
-            const activity = data.activityName || "Unknown";
-            
-            if (!clientSatisfactionStats[activity]) {
-              clientSatisfactionStats[activity] = {
-                totalRatings: 0,
-                sumRatings: 0,
-                averageRating: 0
-              };
-            }
-            
-            clientSatisfactionStats[activity].totalRatings += 1;
-            clientSatisfactionStats[activity].sumRatings += data.rating;
-            clientSatisfactionStats[activity].averageRating = 
-              (clientSatisfactionStats[activity].sumRatings / clientSatisfactionStats[activity].totalRatings).toFixed(1);
-          });
-          
-          console.log("Client Satisfaction Stats:", clientSatisfactionStats);
-        } catch (error) {
-          console.error("Error loading satisfaction stats:", error);
-        }
       }
 
       // Display client satisfaction stats
       function displayClientSatisfactionStats() {
         const container = document.getElementById("clientStatsContainer");
-        
+
         if (!container) {
-          console.log("Container not found - stats will display after page renders");
+          console.log("Stats container not found");
           return;
         }
-        
+
         if (Object.keys(clientSatisfactionStats).length === 0) {
-          container.innerHTML = '<p style="color: #6b7280; text-align: center; grid-column: 1/-1;">No feedback received yet. Share this dashboard with clients to collect ratings!</p>';
+          container.innerHTML =
+            '<p style="color: #6b7280; text-align: center; grid-column: 1/-1;">No feedback received yet. Share this dashboard with clients to collect ratings!</p>';
           return;
         }
-        
-        let html = '';
-        
-        for (const [activityName, stats] of Object.entries(clientSatisfactionStats)) {
-          const starColor = stats.averageRating >= 4 ? '#10b981' : stats.averageRating >= 3 ? '#f59e0b' : '#ef4444';
-          
+
+        let html = "";
+        for (const [type, stats] of Object.entries(clientSatisfactionStats)) {
+          const avgRating = (stats.sumRatings / stats.count).toFixed(1);
           html += `
-            <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; background-color: #f9fafb;">
-              <p style="font-weight: 600; color: #1f2937; margin: 0 0 8px 0; font-size: 14px;">${activityName}</p>
-              <p style="font-size: 24px; color: ${starColor}; margin: 8px 0;">
-                ${'★'.repeat(Math.round(stats.averageRating))}${'☆'.repeat(5 - Math.round(stats.averageRating))}
-              </p>
-              <p style="color: #6b7280; font-size: 14px; margin: 8px 0 0 0;">
-                ${stats.averageRating} / 5.0 (${stats.totalRatings} rating${stats.totalRatings !== 1 ? 's' : ''})
-              </p>
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 8px; color: white;">
+              <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">${type}</h3>
+              <p style="font-size: 28px; font-weight: bold; margin: 10px 0;">⭐ ${avgRating}</p>
+              <p style="font-size: 12px; opacity: 0.9;">${stats.count} rating${
+            stats.count !== 1 ? "s" : ""
+          }</p>
             </div>
           `;
         }
-        
         container.innerHTML = html;
       }
 
-      // Load stats when Firebase is ready
-      function waitAndLoadStats() {
-        if (firebaseReady) {
-          loadClientSatisfactionStats();
-          loadTestFeedbacks();
-        } else {
-          setTimeout(waitAndLoadStats, 500);
-        }
-      }
-      waitAndLoadStats();
-
+      // ============================================
+      // DASHBOARD LOGIC
+      // ============================================
       const app = document.getElementById("root");
       let activeTab = "coloring";
       let expandedDropdowns = {};
@@ -570,12 +669,11 @@
         },
         {
           id: 5,
-          test: "Underwater Scene Spot",
-          passed: false,
+          test: "Space Scene Spot Changes",
+          passed: true,
           satisfaction: true,
-          result:
-            "Generated with some limitations but tester approved quality output",
-          image: "images/spotDifference_5.png",
+          result: "Picture asset generated successfully with cosmic elements",
+          image: "images/spotDifference_7.png",
         },
         {
           id: 6,
@@ -1012,9 +1110,6 @@
   <li><strong>Limited Table Space:</strong> A large clipboard or sturdy pillow on the lap can serve as the playing surface.</li>
   <li><strong>"Loot Box" Theme:</strong> Use actual small, safe objects (plastic army men, blocks, cotton balls) hidden under paper cups that are flipped over.</li>
 </ul>
-
-<h4>🎯 Key Benefits</h4>
-<p>This activity promotes memory, strategy, gentle fine motor practice, and friendly competition—all with an engaging Fortnite theme that appeals to children ages 8-9.</p>
 </div>`,
         },
         {
@@ -1370,138 +1465,6 @@
           result: "well organized",
           image: "",
           content: `<div style="font-family: Arial, sans-serif; color: #333;">
-<h3 style="margin-top: 0;">🗺️ Fortnite "Loot Map" Memory Match 💎</h3>
-<p><strong>A Strategy and Memory Game for Kids (Ages 8-9)</strong></p>
-
-<h4>🎯 Activity Goal</h4>
-<p>To engage children in a fun, strategic memory game inspired by Fortnite's map and "loot," encouraging gentle fine motor skills, focus, and teamwork (or friendly competition).</p>
-
-<h4>🧑‍🤝‍🧑 Target Group</h4>
-<ul>
-  <li><strong>Ages:</strong> 8–9 years old</li>
-  <li><strong>Group Size:</strong> 2 children (can be adapted for individual play or up to 3)</li>
-  <li><strong>Adaptations:</strong> Designed to accommodate children with arthritis, focusing on minimal hand strain.</li>
-</ul>
-
-<h4>📋 Necessary Materials (Minimal & Table-Friendly)</h4>
-<table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
-  <tr style="background-color: #f3f4f6;">
-    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Item</th>
-    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Purpose</th>
-    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Notes</th>
-  </tr>
-  <tr>
-    <td style="border: 1px solid #d1d5db; padding: 10px;">12-16 Small Paper Squares</td>
-    <td style="border: 1px solid #d1d5db; padding: 10px;">The "Map Tiles" or "Loot Cards"</td>
-    <td style="border: 1px solid #d1d5db; padding: 10px;">About 2x2 inches each. Need enough for 6-8 pairs.</td>
-  </tr>
-  <tr style="background-color: #f9fafb;">
-    <td style="border: 1px solid #d1d5db; padding: 10px;">Markers, Crayons, or Colored Pencils</td>
-    <td style="border: 1px solid #d1d5db; padding: 10px;">To draw Fortnite-themed "Loot Icons"</td>
-    <td style="border: 1px solid #d1d5db; padding: 10px;">Focus on easy-grip options if available.</td>
-  </tr>
-  <tr>
-    <td style="border: 1px solid #d1d5db; padding: 10px;">A Clean, Flat Table Surface</td>
-    <td style="border: 1px solid #d1d5db; padding: 10px;">The "Battle Royale Map" playing area</td>
-    <td style="border: 1px solid #d1d5db; padding: 10px;">Any table works great</td>
-  </tr>
-  <tr style="background-color: #f9fafb;">
-    <td style="border: 1px solid #d1d5db; padding: 10px;">Optional: Small, Flat Counters</td>
-    <td style="border: 1px solid #d1d5db; padding: 10px;">To mark "discovered" loot or "safe zones"</td>
-    <td style="border: 1px solid #d1d5db; padding: 10px;">E.g., poker chips, bottle caps</td>
-  </tr>
-</table>
-
-<h4>🕹️ Activity Instructions (For Staff/Facilitator)</h4>
-<p><strong>Preparation (5 minutes):</strong></p>
-<ul>
-  <li><strong>Create Loot Cards:</strong> Guide the children to draw pairs of simple, non-violent Fortnite-themed "loot" icons on paper squares. Examples: shield potion, medkit, llama, treasure chest, bush, supply drop, v-bucks.</li>
-  <li><strong>Shuffle & Lay Out:</strong> Once 6-8 pairs are drawn, shuffle them. Lay them face down in a grid on the table.</li>
-</ul>
-
-<p><strong>Playtime (10–15 minutes):</strong></p>
-<ul>
-  <li><strong>Introduce the Mission:</strong> "Welcome, Battle Royale Explorers! The storm is closing in, and we need to find valuable loot hidden across the map. Let's work together to find all the matching items!"</li>
-  <li><strong>Taking Turns:</strong> Player 1 gently flips over two cards to reveal the "loot."</li>
-  <li><strong>Matching:</strong> If a match, they get to keep the pair. If not, flip them back face down.</li>
-  <li><strong>Game End:</strong> The game ends when all pairs have been found. The player with the most pairs wins!</li>
-</ul>
-
-<h4>🖐️ Adaptations for Arthritis / Joint Pain</h4>
-<table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
-  <tr style="background-color: #f3f4f6;">
-    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Feature</th>
-    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Adaptation/Action</th>
-    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Staff Prompt</th>
-  </tr>
-  <tr>
-    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Card Manipulation</strong></td>
-    <td style="border: 1px solid #d1d5db; padding: 10px;">Use slightly larger, thicker cards. Encourage whole hand or two fingers (index & middle) to lift cards, not pinching.</td>
-    <td style="border: 1px solid #d1d5db; padding: 10px;">"Try lifting the card with the flat of your fingers, like this."</td>
-  </tr>
-  <tr style="background-color: #f9fafb;">
-    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Drawing/Creating</strong></td>
-    <td style="border: 1px solid #d1d5db; padding: 10px;">Provide chunky markers or adaptive grips. Allow pre-drawn cards or let child direct you on what to draw.</td>
-    <td style="border: 1px solid #d1d5db; padding: 10px;">"What's your favorite Fortnite item we can draw today?"</td>
-  </tr>
-  <tr>
-    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Pacing</strong></td>
-    <td style="border: 1px solid #d1d5db; padding: 10px;">Allow for slower turns and breaks. No timed rounds.</td>
-    <td style="border: 1px solid #d1d5db; padding: 10px;">"Take your time, there's no hurry. What's your strategy?"</td>
-  </tr>
-  <tr style="background-color: #f9fafb;">
-    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Alternative Actions</strong></td>
-    <td style="border: 1px solid #d1d5db; padding: 10px;">Players can use a pointer stick to tap cards they want revealed, and staff flips them.</td>
-    <td style="border: 1px solid #d1d5db; padding: 10px;">Offer a pointer and demonstrate how to tap without pressing hard.</td>
-  </tr>
-</table>
-
-<h4>🧑‍⚕️ Hospital Staff Prompts & Gestures</h4>
-<table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
-  <tr style="background-color: #f3f4f6;">
-    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Area</th>
-    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Prompt/Phrase</th>
-    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Recommended Gesture</th>
-  </tr>
-  <tr>
-    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Encouragement</strong></td>
-    <td style="border: 1px solid #d1d5db; padding: 10px;">"Awesome job remembering that! You're a true Battle Royale strategist!"</td>
-    <td style="border: 1px solid #d1d5db; padding: 10px;">Give a thumbs-up. Make eye contact and smile.</td>
-  </tr>
-  <tr style="background-color: #f9fafb;">
-    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Strategy Focus</strong></td>
-    <td style="border: 1px solid #d1d5db; padding: 10px;">"Which part of the map should we search next? Do you remember where that healing potion was?"</td>
-    <td style="border: 1px solid #d1d5db; padding: 10px;">Point to different areas of the grid. Lean in conspiratorially.</td>
-  </tr>
-  <tr>
-    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Gentle Play</strong></td>
-    <td style="border: 1px solid #d1d5db; padding: 10px;">"Remember to be gentle with our map cards. Let's make sure our hands stay comfortable."</td>
-    <td style="border: 1px solid #d1d5db; padding: 10px;">Gently demonstrate lifting a card with a flat hand or two fingers.</td>
-  </tr>
-  <tr style="background-color: #f9fafb;">
-    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Teamwork</strong></td>
-    <td style="border: 1px solid #d1d5db; padding: 10px;">"Should we tell our teammate where the last V-bucks were? Teamwork makes the dream work!"</td>
-    <td style="border: 1px solid #d1d5db; padding: 10px;">Encourage high-fives (if comfortable) for good memory finds.</td>
-  </tr>
-</table>
-
-<h4>🏡 Adaptations for Different Settings</h4>
-<ul>
-  <li><strong>Individual Play:</strong> The child can play against themselves, trying to clear the "map" in the fewest turns.</li>
-  <li><strong>Larger Group:</strong> If playing with 3 children, they can play as a team or in a 3-player competitive format.</li>
-  <li><strong>Limited Table Space:</strong> A large clipboard or sturdy pillow on the lap can serve as the playing surface.</li>
-  <li><strong>"Loot Box" Theme:</strong> Use actual small, safe objects (plastic army men, blocks, cotton balls) hidden under paper cups that are flipped over.</li>
-</ul>
-</div>`,
-        },
-        {
-          id: 7,
-          test: "Logic Puzzle Activity",
-          passed: true,
-          satisfaction: true,
-          result: "engaging and functional",
-          image: "",
-          content: `<div style="font-family: Arial, sans-serif; color: #333;">
 <h3 style="margin-top: 0;">🩺 "Doctor's Mystery Bag" – A Gentle Hospital-Themed Floor Activity</h3>
 
 <h4>🌟 Objective</h4>
@@ -1628,11 +1591,11 @@
 </div>`,
         },
         {
-          id: 8,
-          test: "Counting Challenge Game",
-          passed: false,
-          satisfaction: false,
-          result: "Activity failed validation criteria and quality standards",
+          id: 7,
+          test: "Logic Puzzle Activity",
+          passed: true,
+          satisfaction: true,
+          result: "engaging and functional",
           image: "",
           content: `<div style="font-family: Arial, sans-serif; color: #333;">
 <h3 style="margin-top: 0;">🎸 Rockstar Setlist Creator 🎤</h3>
@@ -1646,7 +1609,7 @@
   <li><strong>Ages:</strong> 6–14 years old</li>
   <li><strong>Group Size:</strong> 1 child (can be adapted for pairs)</li>
   <li><strong>Setting:</strong> Bedside or table</li>
-  <li><strong>Energy Level:</strong> Very low; suitable for kids experiencing fatigue</li>
+  <li><strong>Energy Level:</strong> Very low; suitable for children in hospital settings who need creative expression with minimal physical effort.</li>
   <li><strong>Adaptations:</strong> Designed for children in hospital settings who need creative expression with minimal physical effort.</li>
 </ul>
 
@@ -1767,11 +1730,11 @@
 </div>`,
         },
         {
-          id: 9,
-          test: "Alphabet Sequencing",
-          passed: true,
-          satisfaction: true,
-          result: "successful implementation",
+          id: 8,
+          test: "Counting Challenge Game",
+          passed: false,
+          satisfaction: false,
+          result: "Activity failed validation criteria and quality standards",
           image: "",
           content: `<div style="font-family: Arial, sans-serif; color: #333;">
 <h3 style="margin-top: 0;">🦒 Giraffe Neck Tower – A Bedside Stacking Game 🌿</h3>
@@ -1861,7 +1824,7 @@
   <tr>
     <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Encouragement</strong></td>
     <td style="border: 1px solid #d1d5db; padding: 10px;">"You're building such a strong giraffe neck! Keep going!"</td>
-    <td style="border: 1px solid #d1d5db; padding: 10px;">Thumbs-up. Warm smile. Gentle nod of approval.</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Thumbs-up. Gentle nod of approval.</td>
   </tr>
   <tr style="background-color: #f9fafb;">
     <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Gentle Instruction</strong></td>
@@ -1903,12 +1866,11 @@
 </div>`,
         },
         {
-          id: 10,
-          test: "Number Pattern Recognition",
+          id: 9,
+          test: "Alphabet Sequencing",
           passed: true,
-          satisfaction: false,
-          result:
-            "Functional but does not meet team quality validation standards",
+          satisfaction: true,
+          result: "successful implementation",
           image: "",
           content: `<div style="font-family: Arial, sans-serif; color: #333;">
 <h3 style="margin-top: 0;">🎮 Pixel Pals Mission Match 💎</h3>
@@ -2047,6 +2009,139 @@
 
 <h4>🎯 Key Benefits</h4>
 <p>This activity promotes visual discrimination, observation skills, fine motor practice (picking up cards), teamwork, and celebrates the achievement of completing a "level"—all with an engaging video game theme that appeals to children.</p>
+</div>`,
+        },
+        {
+          id: 10,
+          test: "Number Pattern Recognition",
+          passed: true,
+          satisfaction: false,
+          result:
+            "Functional but does not meet team quality validation standards",
+          image: "",
+          content: `<div style="font-family: Arial, sans-serif; color: #333;">
+<h3 style="margin-top: 0;">🗺️ Fortnite "Loot Map" Memory Match 💎</h3>
+<p><strong>A Strategy and Memory Game for Kids (Ages 8-9)</strong></p>
+
+<h4>🎯 Activity Goal</h4>
+<p>To engage children in a fun, strategic memory game inspired by Fortnite's map and "loot," encouraging gentle fine motor skills, focus, and teamwork (or friendly competition).</p>
+
+<h4>🧑‍🤝‍🧑 Target Group</h4>
+<ul>
+  <li><strong>Ages:</strong> 8–9 years old</li>
+  <li><strong>Group Size:</strong> 2 children (can be adapted for individual play or up to 3)</li>
+  <li><strong>Adaptations:</strong> Designed to accommodate children with arthritis, focusing on minimal hand strain.</li>
+</ul>
+
+<h4>📋 Necessary Materials (Minimal & Table-Friendly)</h4>
+<table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+  <tr style="background-color: #f3f4f6;">
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Item</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Purpose</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Notes</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">12-16 Small Paper Squares</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">The "Map Tiles" or "Loot Cards"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">About 2x2 inches each. Need enough for 6-8 pairs.</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Markers, Crayons, or Colored Pencils</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">To draw Fortnite-themed "Loot Icons"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Focus on easy-grip options if available.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">A Clean, Flat Table Surface</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">The "Battle Royale Map" playing area</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Any table works great</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Optional: Small, Flat Counters</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">To mark "discovered" loot or "safe zones"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">E.g., poker chips, bottle caps</td>
+  </tr>
+</table>
+
+<h4>🕹️ Activity Instructions (For Staff/Facilitator)</h4>
+<p><strong>Preparation (5 minutes):</strong></p>
+<ul>
+  <li><strong>Create Loot Cards:</strong> Guide the children to draw pairs of simple, non-violent Fortnite-themed "loot" icons on paper squares. Examples: shield potion, medkit, llama, treasure chest, bush, supply drop, v-bucks.</li>
+  <li><strong>Shuffle & Lay Out:</strong> Once 6-8 pairs are drawn, shuffle them. Lay them face down in a grid on the table.</li>
+</ul>
+
+<p><strong>Playtime (10–15 minutes):</strong></p>
+<ul>
+  <li><strong>Introduce the Mission:</strong> "Welcome, Battle Royale Explorers! The storm is closing in, and we need to find valuable loot hidden across the map. Let's work together to find all the matching items!"</li>
+  <li><strong>Taking Turns:</strong> Player 1 gently flips over two cards to reveal the "loot."</li>
+  <li><strong>Matching:</strong> If a match, they get to keep the pair. If not, flip them back face down.</li>
+  <li><strong>Game End:</strong> The game ends when all pairs have been found. The player with the most pairs wins!</li>
+</ul>
+
+<h4>🖐️ Adaptations for Arthritis / Joint Pain</h4>
+<table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+  <tr style="background-color: #f3f4f6;">
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Feature</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Adaptation/Action</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Staff Prompt</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Card Manipulation</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Use slightly larger, thicker cards. Encourage whole hand or two fingers (index & middle) to lift cards, not pinching.</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"Try lifting the card with the flat of your fingers, like this."</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Drawing/Creating</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Provide chunky markers or adaptive grips. Allow pre-drawn cards or let child direct you on what to draw.</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"What's your favorite Fortnite item we can draw today?"</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Pacing</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Allow for slower turns and breaks. No timed rounds.</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"Take your time, there's no hurry. What's your strategy?"</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Alternative Actions</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Players can use a pointer stick to tap cards they want revealed, and staff flips them.</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Offer a pointer and demonstrate how to tap without pressing hard.</td>
+  </tr>
+</table>
+
+<h4>🧑‍⚕️ Hospital Staff Prompts & Gestures</h4>
+<table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+  <tr style="background-color: #f3f4f6;">
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Area</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Prompt/Phrase</th>
+    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Recommended Gesture</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Encouragement</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"Awesome job remembering that! You're a true Battle Royale strategist!"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Give a thumbs-up. Make eye contact and smile.</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Strategy Focus</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"Which part of the map should we search next? Do you remember where that healing potion was?"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Point to different areas of the grid. Lean in conspiratorially.</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Gentle Play</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"Remember to be gentle with our map cards. Let's make sure our hands stay comfortable."</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Gently demonstrate lifting a card with a flat hand or two fingers.</td>
+  </tr>
+  <tr style="background-color: #f9fafb;">
+    <td style="border: 1px solid #d1d5db; padding: 10px;"><strong>Teamwork</strong></td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">"Should we tell our teammate where the last V-bucks were? Teamwork makes the dream work!"</td>
+    <td style="border: 1px solid #d1d5db; padding: 10px;">Encourage high-fives (if comfortable) for good memory finds.</td>
+  </tr>
+</table>
+
+<h4>🏡 Adaptations for Different Settings</h4>
+<ul>
+  <li><strong>Individual Play:</strong> The child can play against themselves, trying to clear the "map" in the fewest turns.</li>
+  <li><strong>Larger Group:</strong> If playing with 3 children, they can play as a team or in a 3-player competitive format.</li>
+  <li><strong>Limited Table Space:</strong> A large clipboard or sturdy pillow on the lap can serve as the playing surface.</li>
+  <li><strong>"Loot Box" Theme:</strong> Use actual small, safe objects (plastic army men, blocks, cotton balls) hidden under paper cups that are flipped over.</li>
+</ul>
 </div>`,
         },
       ];
@@ -2682,36 +2777,16 @@
                                                         ? `<div style="font-size: 13px; line-height: 1.6;">${test.content}</div>`
                                                         : `<p class="font-semibold text-gray-900 mb-2">Result Details:</p><p class="leading-relaxed">${test.result}</p>`
                                                     }
-                                                    
-                                                    <!-- Individual Test Feedbacks Section -->
-                                                    <div style="margin-top: 20px; padding: 15px; background-color: #f0f9ff; border-left: 4px solid #3b82f6; border-radius: 4px;">
-                                                      <p style="font-weight: 600; color: #1e40af; margin: 0 0 10px 0; font-size: 13px;">💬 Feedback for this test:</p>
-                                                      ${(() => {
-                                                        const testIdentifier = activeTab + '-' + test.test;
-                                                        const feedbacks = testFeedbacks[testIdentifier] || [];
-                                                        
-                                                        if (feedbacks.length === 0) {
-                                                          return '<p style="color: #6b7280; font-size: 12px; margin: 0;">No feedback received yet for this test.</p>';
-                                                        }
-                                                        
-                                                        return feedbacks.map(feedback => {
-                                                          const stars = '★'.repeat(feedback.rating) + '☆'.repeat(5 - feedback.rating);
-                                                          const dateStr = feedback.timestamp ? new Date(feedback.timestamp.seconds * 1000).toLocaleDateString() : 'Unknown date';
-                                                          return '<div style="margin-bottom: 10px; padding: 10px; background-color: white; border-radius: 4px; border: 1px solid #dbeafe;">' +
-                                                            '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">' +
-                                                            '<span style="font-size: 14px; color: #f59e0b;">' + stars + '</span>' +
-                                                            '<span style="font-size: 11px; color: #9ca3af;">' + dateStr + '</span>' +
-                                                            '</div>' +
-                                                            '<p style="margin: 5px 0; font-size: 12px; color: #374151; font-weight: 500;"><strong>' + feedback.email + '</strong></p>' +
-                                                            '<p style="margin: 5px 0; font-size: 12px; color: #4b5563; font-style: italic; line-height: 1.4;">' + feedback.comment + '</p>' +
-                                                            '</div>';
-                                                        }).join('');
-                                                      })()}
-                                                    </div>
-                                                    
+                                                    <!-- Individual Test Feedback Section -->
                                                     <div style="margin-top: 20px; border-top: 1px solid #e5e7eb; padding-top: 15px;">
+                                                        <div id="feedback-section-${test.id}" style="margin-bottom: 12px;">
+                                                            <!-- Feedback will be loaded here -->
+                                                        </div>
                                                         <button 
-                                                          onclick="openFeedbackModal('${test.test}', '${activeTab}')" 
+                                                          id="feedback-btn-${test.id}"
+                                                          onclick="openFeedbackModal('${
+                                                            test.test
+                                                          }', '${activeTab}', '${test.id}')" 
                                                           style="padding: 8px 16px; background-color: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">
                                                           💬 Provide Feedback
                                                         </button>
@@ -2747,10 +2822,11 @@
             `;
 
         app.innerHTML = html;
-        
+
         // Display client satisfaction stats
         setTimeout(() => {
           displayClientSatisfactionStats();
+          loadAllTestFeedbacks();
         }, 100);
       }
 
@@ -2761,26 +2837,10 @@
       }
 
       render();
+
+      loadClientSatisfactionStats();
     </script>
 
-    <!-- Initialize Firebase after all other scripts load -->
-    <script>
-      function initializeFirebase() {
-        try {
-          if (firebase.apps.length === 0) {
-            firebase.initializeApp(firebaseConfig);
-          }
-          db = firebase.firestore();
-          firebaseReady = true;
-          console.log("✅ Firebase initialized successfully!");
-        } catch (error) {
-          console.error("Firebase initialization error:", error);
-          firebaseReady = false;
-          db = null;
-        }
-      }
-      
-      initializeFirebase();
-    </script>
+    <!-- Removed separate Firebase initialization script - now handled inline -->
   </body>
 </html>
