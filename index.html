@@ -142,6 +142,7 @@
           test: "Beach Scene Differences",
           passed: true,
           satisfaction: true,
+          clientFeedback: true,
           result:
             "Picture asset generated successfully with clear visual differences",
           image: "images/spotDifference_1.png",
@@ -151,6 +152,7 @@
           test: "Zoo Animals Spot Change",
           passed: true,
           satisfaction: true,
+          clientFeedback: true,
           result: "Picture asset generated successfully with animal variations",
           image: "images/spotDifference_2.png",
         },
@@ -159,6 +161,7 @@
           test: "Classroom Objects Hunt",
           passed: false,
           satisfaction: false,
+          clientFeedback: true,
           result:
             "Failed to generate proper classroom scene with adequate differences",
           image: "images/spotDifference_3.png",
@@ -168,6 +171,7 @@
           test: "Garden Creatures Differences",
           passed: true,
           satisfaction: true,
+          clientFeedback: true,
           result: "Picture asset generated with visible creature differences",
           image: "images/spotDifference_4.png",
         },
@@ -2042,6 +2046,11 @@
         ).length;
         const satisfactionRate =
           (satisfactionCount / currentTests.length) * 100;
+        const clientApprovedCount = currentTests.filter(
+          (t) => t.clientFeedback
+        ).length;
+        const clientApprovalRate =
+          (clientApprovedCount / currentTests.length) * 100;
         const colors = colorMap[config.color];
 
         const html = `
@@ -2095,7 +2104,7 @@
                         </div>
 
                         <!-- Key Metrics -->
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
                             <div class="bg-white rounded-lg shadow-lg p-8 border-t-4 ${
                               colors.border
                             }">
@@ -2153,6 +2162,26 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <div class="bg-white rounded-lg shadow-lg p-8 border-t-4 border-emerald-500">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <div class="flex items-center">
+                                            <p class="text-gray-600 text-sm font-semibold uppercase tracking-wide">Client Approval</p>
+                                            <div class="tooltip-container">
+                                                <span class="tooltip-icon">?</span>
+                                                <span class="tooltip-text">Client feedback from Qualtrics validation survey. Indicates whether clinicians and child life specialists approved the generated activity.</span>
+                                            </div>
+                                        </div>
+                                        <p class="text-5xl font-bold text-emerald-600 mt-2">${clientApprovalRate.toFixed(
+                                          0
+                                        )}%</p>
+                                    </div>
+                                    <div class="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center">
+                                        <span class="text-2xl font-bold text-emerald-600">👍</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Charts Section -->
@@ -2192,6 +2221,13 @@
                                           0
                                         )}%</span>
                                         <span class="text-xs text-gray-600">Quality Validation</span>
+                                    </div>
+                                    <div class="bar">
+                                        <div class="bar-fill" style="height: ${clientApprovalRate}px; background: #10b981;"></div>
+                                        <span class="bar-label">${clientApprovalRate.toFixed(
+                                          0
+                                        )}%</span>
+                                        <span class="text-xs text-gray-600">Client Approval</span>
                                     </div>
                                 </div>
                             </div>
@@ -2252,6 +2288,17 @@
                                                                   test.satisfaction
                                                                     ? "✓ Meets Standards"
                                                                     : "✗ Below Standards"
+                                                                }
+                                                            </span>
+                                                            <span class="text-xs font-semibold px-3 py-1 rounded-full ${
+                                                              test.clientFeedback
+                                                                ? "bg-emerald-100 text-emerald-800"
+                                                                : "bg-amber-100 text-amber-800"
+                                                            }">
+                                                                ${
+                                                                  test.clientFeedback
+                                                                    ? "👍 Client Approved"
+                                                                    : "👎 Needs Review"
                                                                 }
                                                             </span>
                                                         </div>
